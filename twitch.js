@@ -37,6 +37,7 @@ class Twitch extends EventEmitter {
     this.eventsubUrl = o.eventsubUrl || EVENTSUB_URL;
     this.backoffBaseMs = o.backoffBaseMs ?? 1000;
     this.logger = o.log || (() => {});
+    this.allowLogin = o.allowLogin || (() => true);                 // (login) => boolean: ¿esta cuenta puede usar el panel? (modo remoto)
     this.canChangeAccount = o.canChangeAccount || (() => true);   // () => boolean: ¿se puede cambiar de cuenta ahora?
     this.wdMargin = o.watchdogMarginMs ?? WATCHDOG_MARGIN_MS;
 
@@ -151,6 +152,7 @@ class Twitch extends EventEmitter {
     const fresh = Twitch.toTokens(j);
     // Se identifica a la cuenta ANTES de tocar la sesión actual: si es otra y hay un evento en marcha, se rechaza sin cambiar nada.
     const who = await this.identify(fresh.accessToken);
+    if (!this.allowLogin(String(who.login || '').toLowerCase())) throw new AuthError('This Twitch account is not allowed to use the panel');
     if (this.user && this.user.id !== who.user_id && !this.canChangeAccount())
       throw new BusyError(`An event is in progress for @${this.user.login}; finish or cancel it before signing in with another account`);
     this.tokens = fresh; this.saveTokens();

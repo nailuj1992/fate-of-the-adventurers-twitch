@@ -107,6 +107,20 @@ Each prize has a state: *pending*, *in progress*, *delivered*, *in recovery* (de
 
 **OBS:** add a *Browser source* with `http://localhost:3000/?view=presentation` (no controls; the buttons only appear when you hover the bottom area). You can also use the `P` key in the normal panel.
 
+## Deploying on Railway (optional, remote mode)
+
+By default the server is local-only (`127.0.0.1`, no sign-in to the panel). To run it on a public host such as [Railway](https://railway.com) it needs a long-running Node process, so static hosts (GitHub Pages) and serverless platforms (Vercel) do not work.
+
+1. **Service**: create a Railway service from this repository. `railway.json` sets the start command and the `/healthz` health check; the platform provides `PORT`.
+2. **Volume**: add a volume and mount it (e.g. at `/data`); set `DATA_DIR=/data` so tokens, settings and history survive redeploys.
+3. **Variables** (Railway → Variables, never in the repository): `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, `TWITCH_CHANNEL`, `DATA_DIR`, and
+   - `PUBLIC_URL`: the public HTTPS origin, e.g. `https://your-app.up.railway.app` (no path). Setting it turns on **remote mode**.
+   - `ALLOWED_LOGINS`: Twitch logins allowed to use the panel, comma-separated (defaults to `TWITCH_CHANNEL`).
+4. **Twitch console**: add `PUBLIC_URL/auth/callback` to the application's OAuth Redirect URLs (it must match `TWITCH_REDIRECT_URI`, which defaults to that value).
+5. Open `PUBLIC_URL` and sign in with Twitch.
+
+In remote mode: the panel, the state stream and every command require a session (HttpOnly, Secure, SameSite=Lax cookie, 12 h) obtained by signing in with an allowed account; any other account is rejected before anything is stored. `Host` and `Origin` must match `PUBLIC_URL`. The server refuses to start without an `https://` `PUBLIC_URL` and a list of allowed accounts. Sessions live in memory, so a restart asks you to sign in again (the Twitch tokens persist on the volume). `/healthz` returns `ok` and no data.
+
 ## Languages (i18n)
 The interface is available in **English (default)** and **Spanish**, following the same convention as DocFlow: English is the default language **regardless of the browser's language**.
 - **EN | ES switch** in the top-right corner. The choice is remembered in the browser (`localStorage`: `celestiales.locale`) and can also be forced with `?lang=es` (handy in the OBS browser source: `http://localhost:3000/?view=presentation&lang=es`).
