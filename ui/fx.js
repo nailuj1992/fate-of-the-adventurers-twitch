@@ -11,7 +11,7 @@ const cv = $('fx'), cx = cv.getContext('2d'), frame = $('frame');
 let parts = [];
 const COLORS = ['#e3b956','#f6e2a6','#3fbf9a','#9fd8ff'];
 const XUEN_COLORS = ['#8fdcff','#ffffff','#a77bff','#5fd0ff'];     // azul eléctrico, blanco y violeta
-const pickColor = () => { const p = frame.classList.contains('xuen') ? XUEN_COLORS : COLORS; return p[secureIndex(p.length)]; };
+const pickColor = () => { const p = frame.classList.contains('xuen') ? XUEN_COLORS : COLORS; return p[Core.secureIndex(p.length)]; };
 function fit(){ cv.width = frame.clientWidth; cv.height = frame.clientHeight; }
 // p = {x, y, vx, vy, life, size, col, glow}; `max` conserva la vida inicial para calcular el desvanecimiento.
 function spawn(p){ parts.push({ ...p, max: p.life }); }
