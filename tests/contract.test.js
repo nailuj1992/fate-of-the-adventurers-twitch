@@ -103,7 +103,7 @@ test('contrato de configuración: valores por defecto, límites y orden de clave
   assert.deepEqual(Core.LIMITS, { prizes: [1, 50], confirmSec: [10, 600], countdownSec: [0, 30], rollSec: [0, 60], revealSec: [0, 30],
     winnerSec: [0, 60], absentSec: [0, 60], transitionSec: [0, 60], introSec: [0, 60], lateSec: [0, 10], graceSec: [0, 300] });
   assert.deepEqual(keys(Core), sorted(['CELESTIALS', 'CONFIG_KEYS', 'DEFAULT_CONFIG', 'Engine', 'LIMITS', 'LIVE', 'MAX_PRIZES', 'XUEN',
-    'preview', 'roundCelestial', 'secureIndex', 'secureShuffle', 'toMs', 'validateConfig']));
+    'err', 'ok', 'preview', 'roundCelestial', 'secureIndex', 'secureShuffle', 'toMs', 'validateConfig']));
 });
 
 test('contrato de errores del motor: {ok:false, errorKey, errorParams, error en inglés}', () => {
