@@ -126,7 +126,7 @@ function renderHistory(){
     li.className = 't-' + (['conf', 'aus', 'dq', 'des', 'sel', 'xuen'].includes(h.kind) ? h.kind : 'sys');
     const tm = document.createElement('time'); tm.textContent = new Date(h.t).toLocaleTimeString(I18n.locale);
     li.append(tm);
-    if (h.prize){ const tag = document.createElement('span'); tag.className = 'htag'; tag.textContent = (h.phase === 'recovery' ? 'Xuen · ' : '') + 'P' + h.prize + (h.phase === 'recovery' ? '' : ' · ' + h.celestial); li.append(tag); }
+    if (h.prize){ const tag = document.createElement('span'); tag.className = 'htag'; tag.textContent = t(h.phase === 'recovery' ? 'ops.tag.recovery' : 'ops.tag.main', { prize: h.prize, celestial: h.celestial }); li.append(tag); }
     li.append(document.createTextNode(h.key ? t('log.' + h.key, h.params) : h.text)); ul.appendChild(li);   // se traduce al idioma activo
   });
 }

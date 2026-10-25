@@ -67,7 +67,7 @@ function renderCfg(){
   const ul = $('cfgPreview'); ul.innerHTML = '';
   if (n){
     Core.preview(n).forEach(p => { const li = document.createElement('li'); li.innerHTML = '<b></b><span></span>'; li.firstChild.textContent = t('cfg.preview.prize', { n: p.prize }); li.lastChild.textContent = '— ' + celInfo(p.index).long; ul.appendChild(li); });
-    const x = document.createElement('li'); x.className = 'xrow'; x.innerHTML = '<b>Xuen</b><span></span>'; x.lastChild.textContent = t('cfg.preview.xuen'); ul.appendChild(x);
+    const x = document.createElement('li'); x.className = 'xrow'; x.innerHTML = '<b></b><span></span>'; x.firstChild.textContent = Core.XUEN.name; x.lastChild.textContent = t('cfg.preview.xuen'); ul.appendChild(x);
   } else { const li = document.createElement('li'); li.textContent = t('cfg.preview.invalid'); ul.appendChild(li); }
   $('cfgSave').disabled = !cfgCheck.ok || S.screen !== 'admin';
   $('cfgDirty').classList.toggle('hide', !cfgDirty);

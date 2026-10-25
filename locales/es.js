@@ -125,6 +125,7 @@
       winners: 'ganadores',
       absences: 'ausencias',
       people: '{count} persona(s)',
+      tag: { main: 'P{prize} · {celestial}', recovery: 'Xuen · P{prize}' },     // etiqueta del premio en el historial (P = premio/prize)
       people_one: '{count} persona',
       people_other: '{count} personas',
       extra: 'Entregados: {delivered} · Recuperados: {recovered} · Pendientes: {pending} · Descalificados: {dq} · Rondas desiertas: {deserted}',
