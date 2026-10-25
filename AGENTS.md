@@ -26,6 +26,11 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 - Frontend: a single static `public/index.html` (vanilla HTML/CSS/JS, no framework), served by the server.
 - Twitch: OAuth authorization-code flow (confidential client) + EventSub WebSocket, scope **`user:read:chat`** only.
 
+## Live deployment
+
+- The hosted app is at **https://fate-of-the-adventurers-twitch-production.up.railway.app/** (Railway, remote mode; deploy steps in the README).
+- **The live link must stay visible in three places** and be kept in sync if the URL ever changes: the repository **description** and **website** field (GitHub *About*), the top of both READMEs, and this file. When editing any of them, check the other two.
+
 ## Layout
 
 | File | Purpose |
