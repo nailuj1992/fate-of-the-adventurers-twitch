@@ -23,6 +23,10 @@ const celInfo = i => { const k = STORY[i].key; return { glow: STORY[i].glow,
 
 // Cantidad de premios y TODOS los tiempos se configuran desde el panel «Configuración» (valores por defecto: core.js → DEFAULT_CONFIG).
 const AMBIENT_PARTICLES = 70;    // partículas mágicas de fondo
+const LOW_TIME_MS = 20000;       // el contador del candidato pasa a rojo cuando quedan 20 s o menos
+const MAX_CHIPS = 200;           // nombres que se dibujan como fichas en la validación (la lista completa se valida igual)
+const TOAST_MS = 6000;           // tiempo que permanece visible un aviso
+const UI_TICK_MS = 40;           // cada cuánto se redibuja el reloj de la interfaz
 
 // Sonidos: rellena con la ruta de un archivo (p. ej. 'sonidos/gong.mp3'). Vacío = silencio.
 const SOUNDS = { countdown:'', roll:'', reveal:'', expire:'', ambient:'' };

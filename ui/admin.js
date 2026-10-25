@@ -105,7 +105,7 @@ function renderAdmin(){
     add(t('admin.problems.ok', { count: a.valid.length, prizes: cfgCheck.config.prizes }) + (ADAPTER.twitchNames ? ' ' + t('admin.problems.okTwitch') : ''), true);
   const dupKeys = new Set(a.dups.map(d => normKey(d.name)));
   const chips = $('chips'); chips.innerHTML = '';
-  a.valid.slice(0,200).forEach(v => { const c = document.createElement('span'); c.className = 'chip' + (dupKeys.has(v.key) ? ' dup' : ''); c.textContent = v.name; chips.appendChild(c); });
+  a.valid.slice(0, MAX_CHIPS).forEach(v => { const c = document.createElement('span'); c.className = 'chip' + (dupKeys.has(v.key) ? ' dup' : ''); c.textContent = v.name; chips.appendChild(c); });
   const blocked = locked || a.bad.length > 0 || a.dups.length > 0 || a.valid.length < need || !cfgCheck.ok || (ADAPTER.twitchNames && tw?.status !== 'connected');
   $('btnStart').disabled = blocked; $('btnStart2').disabled = blocked;
 }

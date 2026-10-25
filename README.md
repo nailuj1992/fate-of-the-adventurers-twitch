@@ -228,18 +228,30 @@ The interface is available in **English (default)** and **Spanish**, following t
 ```bash
 node --test
 ```
-74 tests (~25 s): settings (defaults, validation of negatives/decimals/text/ranges/prizes > participants), rotation (1, 3, 5, 8 and 10 prizes), absences that do not change the Celestial, per-round eligibility, winners, global disqualification, deserted rounds, Xuen (activation, several prizes, absentees, exhaustion), timers with a **simulated clock** (configurable time limit, starts after the reveal, expires only once, delivery margin, strict mode, pause, a single active timer, restore), locked settings, restart without inherited exclusions, connection drops and the OAuth/EventSub protocol with simulated WebSocket and `fetch`. **i18n** tests: English by default, EN/ES key and parameter parity, coverage of the keys in use, plurals, fallback to English and the server page by cookie. One test checks that `core.js`, `i18n.js` and `locales/` are identical in the manual version.
+150 tests (~25 s): settings (defaults, validation of negatives/decimals/text/ranges/prizes > participants), rotation (1, 3, 5, 8 and 10 prizes), absences that do not change the Celestial, per-round eligibility, winners, global disqualification, deserted rounds, Xuen (activation, several prizes, absentees, exhaustion), timers with a **simulated clock** (configurable time limit, starts after the reveal, expires only once, delivery margin, strict mode, pause, a single active timer, restore), locked settings, restart without inherited exclusions, connection drops and the OAuth/EventSub protocol with simulated WebSocket and `fetch`. **i18n** tests: English by default, EN/ES key and parameter parity, coverage of the keys in use, plurals, fallback to English and the server page by cookie. **Contract** tests freeze the state the page receives, the history entries and the saved snapshot; **server** tests cover routes, status codes, sessions and SSE; **parity** tests check that the shared files (`core.js`, `i18n.js`, `locales/`, `css/app.css`, `ui/*.js`) and the page are identical in the manual version (they are skipped, visibly, when the manual repository is not cloned next to this one; `REQUIRE_SIBLING=1` makes that an error, as in CI).
 
 ## Structure
 ```
-core.js          shared core: settings, rotation, eligibility and the event engine (identical in the manual version)
-i18n.js          internationalization (default language EN) · locales/en.js, locales/es.js: catalogs (identical in the manual version)
-game.js          Twitch wrapper: verified list, identities, persisted settings, history
-server.js        local HTTP server, OAuth, SSE and commands
-twitch.js        OAuth + EventSub WebSocket (reconnection, dedupe, token refresh)
-public/index.html  interface (only shows the state and sends commands)
-tests/           automated tests
-store.js         per-streamer data: data/streamers/<twitch-id>/ (config + history)
-tenants.js        one connection + engine per signed-in streamer
-data/            streamers/<twitch-id>/ with tokens.json, config.json and historial.jsonl (generated, outside version control)
+Domain (shared with the manual version, identical files)
+core.js            the event engine: settings, rotation, eligibility, state machine, history
+i18n.js            internationalization (default language EN) · locales/en.js, locales/es.js: catalogs
+css/app.css        the page styles
+ui/*.js            the page logic (state mirror, settings panel, stage, effects), loaded as classic scripts
+
+Twitch server
+server.js          entry point: reads the environment and starts the server
+server/            app (routes, OAuth, SSE), config, sessions, pages and static files
+twitch.js          per-streamer Twitch facade · twitch/auth.js (tokens, OAuth, Helix) · twitch/eventsub.js (WebSocket)
+game.js            engine wrapper: verified list, identities, persisted settings and history
+tenants.js         one connection + engine per signed-in streamer
+store.js           per-streamer data: data/streamers/<twitch-id>/ (config + history)
+logging.js         safe console text
+
+Page (Twitch version)
+public/index.html  page markup (identical to the manual one)
+public/adapter.js  the only UI file that differs: talks to the server (HTTP + SSE)
+
+Other
+tests/             automated tests · docs/ARCHITECTURE.md: how the pieces fit · docs/REFACTORING.md: change log
+data/              streamers/<twitch-id>/ with tokens.json, config.json and historial.jsonl (generated, outside version control)
 ```

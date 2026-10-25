@@ -227,18 +227,30 @@ La interfaz está disponible en **inglés (por defecto)** y **español**, con el
 ```bash
 node --test
 ```
-74 pruebas (~25 s): configuración (valores por defecto, validación de negativos/decimales/texto/rangos/premios > participantes), rotación (1, 3, 5, 8 y 10 premios), ausencias que no cambian el Celestial, elegibilidad por ronda, ganadores, descalificación global, rondas desiertas, Xuen (activación, varios premios, ausentes, agotamiento), temporizadores con **reloj simulado** (plazo configurable, comienza tras la revelación, expira una sola vez, margen de entrega, modo estricto, pausa, un solo temporizador activo, restauración), configuración bloqueada, reinicio sin exclusiones heredadas, caídas de conexión y protocolo OAuth/EventSub con WebSocket y `fetch` simulados. Pruebas de **i18n**: inglés por defecto, paridad de claves y parámetros EN/ES, cobertura de las claves usadas, plurales, respaldo al inglés y página del servidor por cookie. Una prueba comprueba que `core.js`, `i18n.js` y `locales/` son idénticos en la versión manual.
+150 pruebas (~25 s): configuración (valores por defecto, validación de negativos/decimales/texto/rangos/premios > participantes), rotación (1, 3, 5, 8 y 10 premios), ausencias que no cambian el Celestial, elegibilidad por ronda, ganadores, descalificación global, rondas desiertas, Xuen (activación, varios premios, ausentes, agotamiento), temporizadores con **reloj simulado** (plazo configurable, comienza tras la revelación, expira una sola vez, margen de entrega, modo estricto, pausa, un solo temporizador activo, restauración), configuración bloqueada, reinicio sin exclusiones heredadas, caídas de conexión y protocolo OAuth/EventSub con WebSocket y `fetch` simulados. Pruebas de **i18n**: inglés por defecto, paridad de claves y parámetros EN/ES, cobertura de las claves usadas, plurales, respaldo al inglés y página del servidor por cookie. Pruebas de **contrato** congelan el estado que recibe la página, las entradas del historial y el estado guardado; pruebas del **servidor** cubren rutas, códigos de estado, sesiones y SSE; pruebas de **paridad** comprueban que los archivos compartidos (`core.js`, `i18n.js`, `locales/`, `css/app.css`, `ui/*.js`) y la página son idénticos en la versión manual (se omiten, de forma visible, si el repositorio manual no está clonado al lado; con `REQUIRE_SIBLING=1` su ausencia es un error, como en la integración continua).
 
 ## Estructura
 ```
-core.js          núcleo compartido: configuración, rotación, elegibilidad y motor del evento (idéntico en la versión manual)
-i18n.js          internacionalización (idioma por defecto EN) · locales/en.js, locales/es.js: catálogos (idéntico en la versión manual)
-game.js          envoltorio de Twitch: lista verificada, identidades, configuración persistida, historial
-server.js        servidor HTTP local, OAuth, SSE y órdenes
-twitch.js        OAuth + EventSub WebSocket (reconexión, dedupe, refresco de tokens)
-public/index.html  interfaz (solo muestra el estado y envía órdenes)
-tests/           pruebas automáticas
-store.js         datos por streamer: data/streamers/<id-de-twitch>/ (config + historial)
-tenants.js        una conexión + un motor por streamer con sesión iniciada
-data/            streamers/<id-de-twitch>/ con tokens.json, config.json e historial.jsonl (generados, fuera de control de versiones)
+Dominio (compartido con la versión manual, archivos idénticos)
+core.js            el motor del evento: configuración, rotación, elegibilidad, máquina de estados, historial
+i18n.js            internacionalización (idioma por defecto EN) · locales/en.js, locales/es.js: catálogos
+css/app.css        los estilos de la página
+ui/*.js            la lógica de la página (espejo del estado, panel de configuración, escenario, efectos), como scripts clásicos
+
+Servidor de Twitch
+server.js          punto de entrada: lee el entorno y arranca el servidor
+server/            app (rutas, OAuth, SSE), configuración, sesiones, páginas y archivos estáticos
+twitch.js          fachada de Twitch por streamer · twitch/auth.js (tokens, OAuth, Helix) · twitch/eventsub.js (WebSocket)
+game.js            envoltorio del motor: lista verificada, identidades, configuración e historial persistidos
+tenants.js         una conexión + un motor por streamer con sesión iniciada
+store.js           datos por streamer: data/streamers/<id-de-twitch>/ (config + historial)
+logging.js         texto seguro para la consola
+
+Página (versión Twitch)
+public/index.html  estructura de la página (idéntica a la manual)
+public/adapter.js  el único archivo de la interfaz que cambia: habla con el servidor (HTTP + SSE)
+
+Otros
+tests/             pruebas automáticas · docs/ARCHITECTURE.md: cómo encajan las piezas · docs/REFACTORING.md: registro de cambios
+data/              streamers/<id-de-twitch>/ con tokens.json, config.json e historial.jsonl (generados, fuera de control de versiones)
 ```

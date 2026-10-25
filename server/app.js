@@ -51,7 +51,7 @@ const ROUTES = {
 
 /**
  * tenants: instancia de Tenants. remote/publicUrl: modo remoto (sesión obligatoria; Host y Origin deben ser los de publicUrl).
- * Devuelve el http.Server (sin escuchar); `server.openSession(id)` existe para las pruebas.
+ * Devuelve el http.Server (sin escuchar).
  */
 function createApp(tenants, { remote = false, publicUrl = '' } = {}) {
   const sessions = createSessions({ cookieName: SESSION_COOKIE, ttlMs: SESSION_MS });
@@ -144,8 +144,7 @@ function createApp(tenants, { remote = false, publicUrl = '' } = {}) {
     }
   });
   server.on('close', () => hub.close());
-  server.openSession = sessions.open;   // para las pruebas (id del streamer → cookie de sesión)
-  return server;
+    return server;
 }
 
 module.exports = { createApp, MAX_BODY_BYTES };

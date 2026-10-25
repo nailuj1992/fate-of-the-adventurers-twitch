@@ -6,6 +6,7 @@
  */
 const EventEmitter = require('node:events');
 const Core = require('./core');
+const { forLog } = require('./logging');
 
 const { ok, LOGIN_RE } = Core;
 // Errores como los del motor (código + parámetros, ver Core.err) más datos extra, p. ej. el detalle por campo de una configuración inválida.
@@ -61,17 +62,20 @@ class Game extends EventEmitter {
     if (id === this.owner) return;
     this.owner = id;
     let saved = {};
-    if (id && this.store) { try { saved = this.store.loadConfig(id); } catch (e) { console.error('config:', e.message); } }
+    if (id && this.store) {
+      try { this.store.migrateLegacy(id); saved = this.store.loadConfig(id); }     // la migración de datos antiguos es un paso explícito
+      catch (e) { console.error('[game] config:', forLog(e.message)); }
+    }
     this.config = Core.validateConfig(saved, undefined, this.unsafe).config;
     this.emit('change');
   }
   persistConfig() {
     if (!this.owner || !this.store) return;
-    try { this.store.saveConfig(this.owner, this.config); } catch (e) { console.error('config:', e.message); }
+    try { this.store.saveConfig(this.owner, this.config); } catch (e) { console.error('[game] config:', forLog(e.message)); }
   }
   persistLog(e, eventId) {
     if (!this.owner || !this.store) return;
-    try { this.store.appendHistory(this.owner, { event: eventId, ...e }); } catch (error) { console.error('historial:', error.message); }
+    try { this.store.appendHistory(this.owner, { event: eventId, ...e }); } catch (error) { console.error('[game] history:', forLog(error.message)); }
   }
 
   /* ---------- accesores de solo lectura (pruebas y depuración) ---------- */

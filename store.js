@@ -37,7 +37,6 @@ class StreamerStore {
 
   /** Configuración guardada del streamer ({} si no tiene o está dañada: se usarán los valores por defecto). */
   loadConfig(id) {
-    this.migrateLegacy(id);
     try { return JSON.parse(fs.readFileSync(this.configFile(id), 'utf8')); } catch { return {}; }
   }
   saveConfig(id, cfg) {
@@ -48,6 +47,7 @@ class StreamerStore {
   /**
    * Versiones anteriores guardaban una sola config.json / historial.jsonl para todos. El primer streamer que inicie sesión
    * (y solo si todavía no existe ninguna carpeta por streamer) las hereda; los originales se renombran a *.migrated.
+   * Es un paso EXPLÍCITO: lo llama Game.setOwner justo antes de cargar la configuración (loadConfig ya no lo hace a escondidas).
    */
   migrateLegacy(id) {
     const legacy = ['config.json', 'historial.jsonl'].map(f => path.join(this.root, f)).filter(f => fs.existsSync(f));

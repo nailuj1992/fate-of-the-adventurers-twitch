@@ -46,7 +46,7 @@ I18n.onChange(refreshLocale);
 
 function toast(msg){
   const el = $('toast'); el.textContent = msg; el.classList.remove('hide');
-  clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.add('hide'), 6000);
+  clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.add('hide'), TOAST_MS);
 }
 function setState(next){ S = next; offset = S.serverNow - Date.now(); onState(); }
 
@@ -119,7 +119,7 @@ function tickUI(){
   }
   if (S.timer) drawTimer(now);
 }
-setInterval(tickUI, 40);
+setInterval(tickUI, UI_TICK_MS);
 
 function fmtRemain(ms){ const s = Math.ceil(ms/1000); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
 // Tiempo que queda al candidato: en pausa, el congelado; en el margen de entrega o verificando, 0; sin hora límite aún, el total.
@@ -135,7 +135,7 @@ function drawTimer(now){
   const frac = Math.max(0, Math.min(1, rem / tm.total)), circ = 2*Math.PI*44, fg = $('ringFg');
   fg.style.strokeDasharray = circ; fg.style.strokeDashoffset = circ * (1 - frac);
   $('timeText').textContent = fmtRemain(rem);
-  $('timerBox').classList.toggle('low', tm.started && rem <= 20000);
+  $('timerBox').classList.toggle('low', tm.started && rem <= LOW_TIME_MS);
   $('timerNote').classList.toggle('hide', tm.started);        // durante la revelación el plazo aún no corre
 }
 function setCand(name, cls, animate = true){
