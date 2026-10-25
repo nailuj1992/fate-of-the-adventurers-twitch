@@ -31,7 +31,6 @@ const SOUNDS = { countdown:'', roll:'', reveal:'', expire:'', ambient:'' };
    UTILIDADES
    ===================================================================== */
 const $ = id => document.getElementById(id);
-const wait = ms => new Promise(r => setTimeout(r, ms));
 
 // ÚNICA fuente de aleatoriedad: crypto.getRandomValues (no se usa Math.random en ningún sitio).
 function rand32(){ const b = new Uint32Array(1); crypto.getRandomValues(b); return b[0]; }
