@@ -9,6 +9,7 @@ const Core = require('../core');
 
 const ROOT = path.join(__dirname, '..');
 const read = (...p) => fs.readFileSync(path.join(ROOT, ...p), 'utf8');
+const readDir = dir => fs.readdirSync(path.join(ROOT, dir)).filter(f => f.endsWith('.js')).map(f => read(dir, f)).join('\n');
 const SIB = ['fate-of-the-adventurers-manual', 'Idea 2 - Manual'].find(n => fs.existsSync(path.join(ROOT, '..', n)));   // repo hermano, si está clonado al lado
 const MANUAL = path.join(ROOT, '..', SIB || 'fate-of-the-adventurers-manual', 'index.html');
 const params = s => [...new Set([...s.matchAll(/\{(\w+)\}/g)].map(m => m[1]))].sort();
@@ -77,10 +78,12 @@ test('todas las claves usadas por la interfaz (Twitch y manual) existen en el ca
   }
 });
 test('claves del motor, errores y servidor: las usadas existen y las del catálogo se usan', () => {
-  const core = read('core.js'), game = read('game.js'), server = read('server.js');
+  const core = read('core.js'), game = read('game.js'), server = read('server.js') + '\n' + readDir('server');
   const used = new Set([...keysIn(core), ...keysIn(game), ...keysIn(server)]);
   for (const m of core.matchAll(/this\.log\('[a-z]+',\s*'([a-z_]+)'/g)) used.add('log.' + m[1]);
   for (const m of (core + game).matchAll(/\berr\('([a-z_]+)'/g)) used.add('err.' + m[1]);
+  for (const m of server.matchAll(/HttpError\(\d+,\s*'([a-z_]+)'/g)) used.add('err.' + m[1]);   // errores de la API HTTP
+  used.add('err.generic');                                                                      // 500 genérico (fail(res, 500, 'generic'))
   for (const k of used) assert.ok(k in en, 'clave usada y no definida: ' + k);
   // claves de log.* que el motor referencia entre comillas (también dentro de condicionales); _repl se compone
   for (const k of Object.keys(en).filter(k => k.startsWith('log.') && !k.startsWith('log.via.'))) {
@@ -88,12 +91,12 @@ test('claves del motor, errores y servidor: las usadas existen y las del catálo
     assert.ok(core.includes(`'${short}'`), 'clave del catálogo sin usar en core.js: ' + k);
   }
   for (const k of Object.keys(en).filter(k => k.startsWith('err.') && k !== 'err.generic' && k !== 'err.config_locked'))
-    assert.ok((core + game).includes(`'${k.slice(4)}'`), 'error del catálogo sin usar: ' + k);
+    assert.ok((core + game + server).includes(`'${k.slice(4)}'`), 'error del catálogo sin usar: ' + k);
 });
 test('familias dinámicas completas: opciones de configuración, errores de campo, estados de Twitch y fases', () => {
   for (const k of Core.CONFIG_KEYS) for (const f of ['cfg.label.', 'cfg.help.']) assert.ok((f + k) in en && (f + k) in es, f + k);
   for (const c of ['number', 'integer', 'range', 'max_participants']) assert.ok(('cfg.err.' + c) in en);
-  const tw = read('twitch.js');
+  const tw = read('twitch.js') + '\n' + readDir('twitch');   // los códigos de estado se emiten desde la fachada y desde twitch/*.js
   const codes = new Set([...tw.matchAll(/code: '([a-z_]+)'/g)].map(m => m[1]));
   for (const m of tw.matchAll(/setStatus\('(?:connected|disconnected|reconnecting)',\s*'([a-z_]+)'/g)) codes.add(m[1]);
   for (const m of tw.matchAll(/invalidateTokens\('([a-z_]+)'\)/g)) codes.add(m[1]);

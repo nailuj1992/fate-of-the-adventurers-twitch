@@ -169,20 +169,48 @@ test('estáticos: solo la lista cerrada de módulos compartidos e imágenes; nad
   } finally { await close(); }
 });
 
-test('órdenes: método/Content-Type/orden desconocida/JSON inválido (códigos actuales)', async () => {
+test('órdenes: errores de la API con código HTTP y forma {ok, errorKey, errorParams, error} traducible (D-1, D-2)', async () => {
   const { signIn, call, post, as, close } = await boot();
+  const shape = (r, status, errorKey) => {
+    assert.equal(r.status, status); const b = JSON.parse(r.body);
+    assert.deepEqual(Object.keys(b).sort(), ['error', 'errorKey', 'errorParams', 'ok']); assert.equal(b.ok, false); assert.equal(b.errorKey, errorKey);
+    assert.ok(b.error && !/[áéíóúñ]/i.test(b.error), 'el texto de respaldo va en inglés');
+  };
   try {
+    shape(await call('/api/state'), 401, 'err.sign_in_required');
     const { cookie } = await signIn('111', 'ana');
-    const noType = await call('/api/confirm', { method: 'POST', headers: as(cookie), body: '{}' });
-    assert.equal(noType.status, 415);
-    const unknown = await post('/api/nope', cookie, {});
-    assert.equal(unknown.status, 404); assert.equal(JSON.parse(unknown.body).ok, false);
+    shape(await call('/api/confirm', { method: 'POST', headers: as(cookie), body: '{}' }), 415, 'err.json_required');
+    shape(await post('/api/nope', cookie, {}), 404, 'err.unknown_command');
     const known = await post('/api/confirm', cookie, {});
     assert.equal(known.status, 200); assert.equal(JSON.parse(known.body).errorKey, 'err.no_active_confirm');
-    // Comportamiento ACTUAL (defecto D-2): un JSON inválido responde 500. Al corregirlo (4xx) esta aserción cambia a propósito.
-    const badJson = await call('/api/confirm', { method: 'POST', headers: { ...as(cookie), ...JSON_H }, body: '{no es json' });
-    assert.equal(badJson.status, 500);
+    // D-2: un JSON inválido ya no es un 500 sino un 400 con su clave.
+    shape(await call('/api/confirm', { method: 'POST', headers: { ...as(cookie), ...JSON_H }, body: '{no es json' }), 400, 'err.invalid_json');
+    shape(await call('/api/confirm', { method: 'POST', headers: { ...as(cookie), ...JSON_H }, body: JSON.stringify({ x: 'a'.repeat(70000) }) }), 413, 'err.body_too_large');
     assert.equal((await call('/api/state', { method: 'POST', headers: { ...as(cookie), ...JSON_H }, body: '{}' })).status, 404);
+    assert.equal(JSON.parse((await call('/api/state', { headers: as(cookie) })).body).screen, 'admin', 'el servidor sigue sirviendo tras un cuerpo rechazado');
+  } finally { await close(); }
+});
+
+test('un error inesperado responde 500 genérico sin filtrar el mensaje interno', async () => {
+  const { signIn, post, tenants, close } = await boot();
+  const log = console.error; console.error = () => {};
+  try {
+    const { cookie } = await signIn('111', 'ana');
+    tenants.get('111').game.pauseToggle = () => { throw new Error('detalle interno secreto'); };
+    const r = await post('/api/pause', cookie, {});
+    assert.equal(r.status, 500); assert.equal(JSON.parse(r.body).errorKey, 'err.generic'); assert.ok(!r.body.includes('secreto'));
+  } finally { console.error = log; await close(); }
+});
+
+test('liberar un tenant desengancha sus oyentes del servidor (D-4)', async () => {
+  const { signIn, tenants, close } = await boot({ remote: false });
+  try {
+    await signIn('111', 'ana');                                   // local: el último que inicia sesión queda en pantalla
+    const t = tenants.get('111'), changes = t.game.listenerCount('change'), identities = t.twitch.listenerCount('identity');
+    assert.ok(changes >= 1 && identities >= 2, 'el servidor escucha el juego y la identidad (además del propio Game)');
+    tenants.logout(t);
+    assert.equal(t.game.listenerCount('change'), changes - 1);
+    assert.equal(t.twitch.listenerCount('identity'), identities - 1);
   } finally { await close(); }
 });
 

@@ -276,6 +276,11 @@
       twitch_lookup_failed: 'No se pudo consultar a Twitch: {detail}',
       unknown_users: 'Estos usuarios no existen en Twitch: {list}',
       same_account: 'Hay dos nombres que son la misma cuenta.',
+      sign_in_required: 'Inicia sesión con Twitch primero.',
+      json_required: 'La petición debe enviarse como application/json.',
+      unknown_command: 'Orden desconocida.',
+      invalid_json: 'El cuerpo de la petición no es un JSON válido.',
+      body_too_large: 'La petición es demasiado grande.',
     },
     // Servidor (páginas de error de OAuth y consola)
     srv: {

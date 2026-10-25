@@ -41,7 +41,12 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 | `tenants.js` | One tenant (Twitch connection + `Game`) per signed-in streamer, keyed by Twitch user ID; login/logout, allow-list, `MAX_STREAMERS`; `local` mode keeps a `current` tenant. |
 | `railway.json` | Railway deploy settings (start command, `/healthz` check). |
 | `store.js` | `StreamerStore`: per-streamer data under `data/streamers/<twitch-id>/` (`config.json`, `historial.jsonl`); validates the ID (digits only); migrates legacy single-file data to the first account that signs in. |
-| `server.js` | Local HTTP server (`127.0.0.1` only): static files, OAuth routes, SSE state stream, command routes (`/api/*`), server-side error pages (translated by cookie). |
+| `server.js` | Entry point: loads `.env`, builds the config, composes `Tenants` + the app and listens (`127.0.0.1` only in local mode). Importing it has no side effects; it re-exports `createApp` for the tests. |
+| `server/app.js` | `createApp`: routing, Host/Origin check, OAuth routes, command routes (`/api/*`, table `ROUTES`), SSE endpoint. API errors are `{ok:false, errorKey:'err.<code>', errorParams, error}` (see `HttpError`). Every route resolves its tenant through `tenantOf(req)`. |
+| `server/config.js` | `readConfig(env)` (pure), `loadDotEnv`, `isLoginAllowed`, `configProblems` (refuses an insecure remote mode). |
+| `server/sessions.js` | Panel sessions (remote mode): random id in an HttpOnly cookie → Twitch user ID, in memory, swept on open. |
+| `server/sse.js` | SSE hub: each client only receives its own streamer's state; `attach(tenant)` returns the detach function. |
+| `server/pages.js` | Login/error HTML, the panel, and the closed list of static files (shared modules and images). |
 | `twitch.js` | Per-streamer Twitch façade (same class, events and import path): owns the account (`user`, `channelUser`), the connection `status` and the hourly token validation, and wires the two modules below. |
 | `twitch/auth.js` | `TwitchAuth`: tokens on disk, OAuth authorization code (`authUrl`, `exchange`), refresh/validate, Helix calls (`api`, `resolveLogins`, `subscribeChat`). Emits `invalidated` when the refresh token stops working. |
 | `twitch/eventsub.js` | `EventSubSession`: EventSub WebSocket lifecycle — welcome, `session_reconnect` migration, keepalive watchdog, exponential backoff, `message_id` dedupe. Knows nothing about tokens or accounts. |
@@ -80,7 +85,7 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 
 - **Add a setting:** add it to `DEFAULT_CONFIG` + `LIMITS` (`core.js`), `toMs` if it is a duration, labels/help in both catalogs (`cfg.label.<k>`, `cfg.help.<k>`), the field list in `public/index.html` (`CFG_MAIN`/`CFG_ADV`), README tables (EN and ES) and tests. Sync `core.js`/locales to the sibling repo.
 - **Change or add a message:** edit the key in **both** catalogs; if it is a new engine log, add the `this.log(..., 'new_key', params)` call and the `log.new_key` entry.
-- **Add a language:** copy `locales/en.js`, translate, register it in `i18n.js` (`SUPPORTED`, loaders), in `server.js` (`SHARED` list) and as a `<script>` in `public/index.html`; extend the switcher; tests then enforce parity.
+- **Add a language:** copy `locales/en.js`, translate, register it in `i18n.js` (`SUPPORTED`, loaders), in `server/pages.js` (`SHARED` list) and as a `<script>` in `public/index.html`; extend the switcher; tests then enforce parity.
 - **Change phase behaviour/timing semantics:** edit `core.js` only, update `core.test.js` (simulated clock) first, then `game.test.js`.
 - **Touch Twitch integration** (`twitch.js`): follow the official EventSub docs (welcome → subscribe within 10 s, `session_reconnect` migration, keepalive watchdog, `message_id` dedupe). Keep `user:read:chat` as the only scope.
 - **Screenshots:** both READMEs use `docs/img/<en|es>/NN-*.webp` (sections 3-5). They were taken from the real UI connected to a **simulated Twitch** (fictional account and chat) with fictional names; never publish screenshots of the Twitch console, `.env`, tokens or real accounts. When the UI changes visibly, retake them (both languages, same file names).
