@@ -44,6 +44,13 @@ test('loadDotEnv: lee KEY=valor (con comillas), no pisa el entorno y no falla si
   assert.doesNotThrow(() => loadDotEnv(path.join(dir, 'no-existe'), {}));
 });
 
+test('forLog: sin saltos de línea ni caracteres de control, con tope de longitud y aceptando cualquier valor', () => {
+  const { forLog, MAX_LOG_CHARS } = require('../logging');
+  assert.equal(forLog('línea 1\r\nFALSO [twitch] ok\u0000\u007fcierre'), 'línea 1 FALSO [twitch] ok cierre', 'una racha de controles pasa a UN espacio');
+  assert.equal(forLog('a'.repeat(MAX_LOG_CHARS + 50)).length, MAX_LOG_CHARS);
+  assert.equal(forLog(undefined), 'undefined'); assert.equal(forLog(new Error('x')), 'Error: x');
+});
+
 test('importar server.js no tiene efectos: no lee .env ni modifica process.env', () => {
   const before = JSON.stringify(process.env);
   delete require.cache[require.resolve('../server')];

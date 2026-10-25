@@ -7,6 +7,7 @@
  */
 const http = require('node:http');
 const Core = require('../core');
+const { forLog } = require('../logging');
 const { createSessions } = require('./sessions');
 const { createSseHub } = require('./sse');
 const pages = require('./pages');
@@ -19,9 +20,6 @@ const LOCAL_HOST_RE = /^(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 // Error de la API con código HTTP; viaja como los del motor: {ok:false, errorKey:'err.<code>', errorParams, error en inglés}.
 class HttpError extends Error { constructor(status, code, params) { super(code); this.status = status; this.code = code; this.params = params; } }
-
-// Texto para la consola: sin saltos de línea ni caracteres de control (evita inyectar líneas falsas en el registro).
-const forLog = s => String(s).replace(/[\u0000-\u001f\u007f]+/g, ' ').slice(0, 300);
 
 const json = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(obj)); };
 const fail = (res, status, code, params) => json(res, status, Core.err(code, params));
