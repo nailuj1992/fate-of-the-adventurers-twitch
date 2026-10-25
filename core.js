@@ -216,18 +216,24 @@
     }
 
     /* ---------- selección ---------- */
-    startCountdown(replacement) { this.replacement = !!replacement; this.enter('countdown', 'countdown', this.ms.countdown); }
+    startCountdown(replacement) {
+      this.replacement = !!replacement;
+      // Reemplazo con un solo elegible (los demás no respondieron): no hay nada que sortear, se salta la cuenta atrás y el roll.
+      if (this.replacement && this.eligible().length === 1) { this.doDraw(true); return; }
+      this.enter('countdown', 'countdown', this.ms.countdown);
+    }
     // EXTRACCIÓN: ocurre aquí, al terminar la cuenta atrás; nunca se calcula por adelantado. El elegido sale del conjunto al instante.
-    doDraw() {
+    doDraw(onlyOne = false) {
       const elig = this.eligible();
       if (!elig.length) { this.desertRound(); return; }
       const pick = elig[this.o.pick(elig.length)];
       this.cur = { name: pick.name, key: pick.key, userId: pick.userId || null, round: this.round, settled: false,
         total: this.ms.confirm, deadline: 0, gap: false, closing: false, grace: false, revealedAt: 0 };
-      this.rollNames = elig.map(p => p.name);
+      this.rollNames = onlyOne ? [] : elig.map(p => p.name);
+      if (onlyOne) this.log('sys', 'last_candidate', { name: pick.name });
       this.log('sel', (this.inXuen ? 'draw_xuen' : 'draw_main') + (this.replacement ? '_repl' : ''),
         { prize: (this.inXuen ? this.pendingPrizes()[0] : this.round) + 1, celestial: this.celestial().name, name: pick.name });
-      this.enter('rolling', 'rolling', this.ms.roll);
+      if (onlyOne) this.reveal(); else this.enter('rolling', 'rolling', this.ms.roll);
     }
     // Revelación: el nombre ya es visible y se empieza a escuchar el chat; el plazo de confirmación AÚN no corre.
     reveal() {

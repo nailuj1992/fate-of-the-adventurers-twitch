@@ -353,3 +353,16 @@ test('el historial se escribe en la carpeta del streamer dueño del evento', asy
   assert.ok(fs.existsSync(store.historyFile('111')));
   assert.ok(!fs.existsSync(store.historyFile('222')));
 });
+
+test('si tras las ausencias queda un solo elegible, se salta la cuenta atrás y el roll y pasa directo a la revelación', async () => {
+  const { g } = await setup({ names: ['ana', 'bob', 'carla'], pick: first, config: { prizes: 1 } });
+  const seq = []; g.on('change', () => { if (seq[seq.length - 1] !== g.status) seq.push(g.status); });
+  assert.equal(await absentOne(g), 'Ana');
+  assert.equal(await absentOne(g), 'Bob', 'con dos elegibles se sortea con normalidad');
+  await until(() => g.status === 'reveal' && g.cur && g.cur.name === 'Carla');
+  const afterLastAbsent = seq.slice(seq.lastIndexOf('absent') + 1);
+  assert.ok(!afterLastAbsent.includes('countdown') && !afterLastAbsent.includes('rolling'), 'sin cuenta atrás ni roll: ' + afterLastAbsent);
+  assert.ok(g.history.some(h => h.key === 'last_candidate'), 'queda anotado en el historial');
+  await until(() => g.status === 'confirming'); chat(g, 'carla'); assert.equal(g.status, 'won');   // sigue siendo candidata: debe confirmar presencia
+  g.cancel();
+});
