@@ -9,7 +9,6 @@
    ===================================================================== */
 const normKey = s => s.normalize('NFC').toLocaleLowerCase(I18n.locale);
 const cleanLine = s => { const x = s.replace(/\s+/g,' ').trim(); return ADAPTER.twitchNames ? x.replace(/^@/,'') : x; };
-const LOGIN_RE = /^\w{1,25}$/;                      // \w = [A-Za-z0-9_] (sin la bandera u)
 let serverErr = null;                                // resultado fallido al intentar iniciar ({errorKey, errorParams, errors}); se traduce al pintar
 
 function analyze(){
@@ -17,7 +16,7 @@ function analyze(){
   lines.forEach((raw, i) => {
     const name = cleanLine(raw);
     if (!name){ empty++; return; }
-    if (ADAPTER.twitchNames && !LOGIN_RE.test(name)){ bad.push({name, line:i+1}); return; }
+    if (ADAPTER.twitchNames && !Core.LOGIN_RE.test(name)){ bad.push({name, line:i+1}); return; }
     const key = normKey(name);
     if (!seen.has(key)) seen.set(key, {name, lines:[i+1], count:0});
     const e = seen.get(key); e.count++; if (e.lines[e.lines.length-1] !== i+1) e.lines.push(i+1);
