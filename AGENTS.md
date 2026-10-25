@@ -9,6 +9,7 @@ Guidance for AI coding agents working in this repository.
 - Never force-push a shared branch, never rewrite pushed history, never bypass hooks (`--no-verify`).
 - Commit only what you were asked to commit: run `git status` first. **Never commit `.env`, `data/` (tokens, history, settings) or anything containing a secret.** Commit messages are written in English, Conventional Commits style (`feat:`, `fix:`, `docs:`, `test:`, `chore:`…): a short imperative subject, then a body explaining the *why* for non-trivial changes.
 - No tags or releases unless the maintainer asks.
+- **This repository is public and `master` is protected** (pull request required, no force-push, no deletion, applies to admins too). Everything committed is publicly readable forever: never commit secrets, tokens, personal data or real participant lists.
 - This repository has a **sibling**: `fate-of-the-adventurers-manual` (same engine, no Twitch). A change to a *shared file* (see below) needs the matching branch and pull request there.
 
 ## Project
@@ -35,7 +36,7 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 | `server.js` | Local HTTP server (`127.0.0.1` only): static files, OAuth routes, SSE state stream, command routes (`/api/*`), server-side error pages (translated by cookie). |
 | `twitch.js` | OAuth + EventSub client: token refresh/validation, subscription, reconnect/migration, dedupe, backoff. |
 | `public/index.html` | The whole UI. Only renders the state it receives and sends commands. Contains an **adapter** section (`MODE = 'twitch'`) that differs from the manual repo. |
-| `public/img/` | Celestial images (`niuzao.png`, `yulon.webp`, `chiji.png`, `xuen.webp`). Third-party artwork: do not redistribute outside the private repo. |
+| `public/img/` | Celestial images (`niuzao.png`, `yulon.webp`, `chiji.png`, `xuen.webp`). Third-party artwork (not owned by the maintainer): do not add more of it or redistribute it elsewhere; the maintainer decides if it must be replaced. |
 | `tests/` | `core.test.js` (engine with a simulated clock), `game.test.js` (wrapper, real timers), `twitch.test.js` (OAuth/EventSub with fake WebSocket/fetch), `i18n.test.js` (parity and key coverage). |
 | `iniciar.bat` | Windows launcher (creates `.env` from `.env.example`, starts the server, opens the browser). |
 | `.env.example` | Environment template. The real `.env` is git-ignored. |
