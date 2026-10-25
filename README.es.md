@@ -79,6 +79,7 @@ Introducción del Celestial → cuenta atrás → selección → revelación →
 ```
 - **El plazo de confirmación empieza cuando termina la revelación**: el nombre ya es visible y se está escuchando el chat desde que empezó la revelación (un mensaje en ese momento ya confirma), pero **ninguna animación previa descuenta tiempo**. El plazo lo lleva el **servidor**; la página solo lo dibuja.
 - **Cualquier mensaje del elegido en el chat** confirma su presencia (sin comando).
+- **Último candidato:** si, tras no responder los demás, queda **una sola** persona elegible para ese premio, ya no hay nada que sortear: se salta la cuenta atrás y el roll y esa persona se revela de inmediato como candidata (aun así debe confirmar su presencia a tiempo).
 - **Controles del presentador:** *Confirmar presencia* (respaldo manual), *Pausar* (congela la fase en curso, también el plazo de confirmación; se muestra «EVENTO EN PAUSA»), *Saltar espera* (introducción, ganador, ausente, transición), *Descalificar del sorteo*, *Cancelar sorteo*, *Reiniciar sorteo*.
 
 ### Rotación de Celestiales

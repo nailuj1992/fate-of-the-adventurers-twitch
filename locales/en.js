@@ -229,6 +229,7 @@
       draw_main_repl: 'Replacement · prize {prize} ({celestial}): {name}',
       draw_xuen: 'Selection · Xuen (recovery of prize {prize}): {name}',
       draw_xuen_repl: 'Replacement · Xuen (recovery of prize {prize}): {name}',
+      last_candidate: 'Only one eligible participant is left: {name} is the candidate directly, with no countdown or roll.',
       no_conn_reveal: 'No reliable connection with Twitch when the candidate was revealed.',
       verifying: 'Time is up, but the Twitch connection was not reliable: {name} is NOT declared absent until this is verified.',
       grace: 'Connection recovered: {name} has {sec} extra seconds to write in the chat.',
