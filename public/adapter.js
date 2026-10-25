@@ -13,8 +13,14 @@ const ADAPTER = { name: 'twitch', twitchNames: true, helpSuffix: '' };
 async function api(name, body){
   try {
     const r = await fetch('/api/' + name, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body || {}) });
-    const j = await r.json(); if (!j.ok) toast(errText(j)); return j;
-  } catch(e){ toast(t('toast.noServer')); return { ok:false, errorKey:'toast.noServer' }; }
+    const j = await r.json();
+    if (!j.ok) toast(errText(j));
+    return j;
+  } catch(e){
+    // Sin servidor (o respuesta que no es JSON): la interfaz lo avisa con un aviso traducido en vez de mostrar el error técnico.
+    toast(t('toast.noServer'));
+    return { ok:false, errorKey:'toast.noServer' };
+  }
 }
 function boot(){
   // Esta versión necesita el servidor local: no funciona abriendo el archivo con doble clic.
