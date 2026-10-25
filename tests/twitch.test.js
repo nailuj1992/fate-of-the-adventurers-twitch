@@ -43,6 +43,8 @@ function make(overrides = {}) {
     fetchImpl, WebSocketImpl: FakeWS, eventsubUrl: 'wss://fake/ws', backoffBaseMs: 5, watchdogMarginMs: 0, ...overrides });
   return { tw, calls, state, tokenFile };
 }
+// Equivale al callback de OAuth en producción (Tenants.login): canjear el código y adoptar los tokens.
+const callback = async (tw, state) => { const { tokens } = await tw.exchange({ code: 'CODE', state: state || new URL(tw.authUrl()).searchParams.get('state') }); await tw.adopt(tokens); };
 const statuses = tw => { const l = []; tw.on('status', s => l.push(s.status)); return l; };
 
 test('conecta, se suscribe a channel.chat.message v1 con los IDs correctos y pasa a conectado', async () => {
@@ -131,13 +133,13 @@ test('OAuth: URL con scope mínimo y state; el callback valida state y guarda to
   assert.equal(u.searchParams.get('response_type'), 'code'); assert.equal(u.searchParams.get('scope'), 'user:read:chat');
   assert.equal(u.searchParams.get('redirect_uri'), 'http://localhost:3000/auth/callback');
   assert.equal(u.searchParams.get('client_secret'), null, 'el secreto nunca va en la URL');
-  await assert.rejects(tw.handleCallback({ code: 'c', state: 'falso' }), /state/);
+  await assert.rejects(tw.exchange({ code: 'c', state: 'falso' }), /state/);
   fs.unlinkSync(tokenFile);
-  await tw.handleCallback({ code: 'CODE', state: u.searchParams.get('state') });
+  await callback(tw, u.searchParams.get('state'));
   const tokenCall = calls.find(c => c.url.endsWith('/oauth2/token'));
   assert.match(String(tokenCall.opts.body), /grant_type=authorization_code/);
   assert.equal(JSON.parse(fs.readFileSync(tokenFile, 'utf8')).refreshToken, 'RT2');
-  await assert.rejects(tw.handleCallback({ code: 'CODE', state: u.searchParams.get('state') }), /state/, 'el state es de un solo uso');
+  await assert.rejects(tw.exchange({ code: 'CODE', state: u.searchParams.get('state') }), /state/, 'el state es de un solo uso');
   tw.logout();
 });
 
@@ -149,30 +151,24 @@ test('resolveLogins consulta Helix con varios login y devuelve ID y nombre visib
   tw.logout();
 });
 
-test('cuenta: otra cuenta no puede iniciar sesión con un evento en marcha; sin evento sí y se avisa con "identity"', async () => {
-  let busy = true;
-  const { tw, state, tokenFile } = make({ canChangeAccount: () => !busy });
+test('cuenta: "identity" se emite solo cuando cambia la cuenta (renovar la misma no avisa; cerrar sesión avisa con null)', async () => {
+  const { tw, state } = make();
   const seen = []; tw.on('identity', u => seen.push(u && u.id));
-  tw.setUser({ id: '100', login: 'streamer' });
-  const login = async () => { const u = new URL(tw.authUrl()); await tw.handleCallback({ code: 'CODE', state: u.searchParams.get('state') }); };
-  state.userId = '200';
-  await assert.rejects(login(), /event is in progress/);
-  assert.equal(tw.user.id, '100', 'la sesión original no se toca');
-  assert.equal(JSON.parse(fs.readFileSync(tokenFile, 'utf8')).accessToken, 'AT', 'los tokens originales siguen guardados');
-  state.userId = '100'; await login();                       // la misma cuenta siempre puede renovar
+  state.userId = '100'; await callback(tw);
+  state.userId = '100'; await callback(tw);                  // la misma cuenta renueva sus tokens
   assert.deepEqual(seen, ['100']);
-  busy = false; state.userId = '200'; await login();
+  state.userId = '200'; await callback(tw);
   assert.equal(tw.user.id, '200'); assert.deepEqual(seen, ['100', '200']);
   tw.logout(); assert.deepEqual(seen, ['100', '200', null]);
 });
 
-test('modo remoto: una cuenta que no está en la lista permitida no inicia sesión ni toca la sesión actual', async () => {
-  const { tw, state, tokenFile } = make({ allowLogin: login => login === 'streamer' });
-  const login = async () => { const u = new URL(tw.authUrl()); await tw.handleCallback({ code: 'CODE', state: u.searchParams.get('state') }); };
+test('exchange no tiene efectos: identifica la cuenta sin guardar tokens ni tocar la sesión (la lista de cuentas permitidas se aplica antes de adopt)', async () => {
+  const { tw, state, tokenFile } = make();
   fs.unlinkSync(tokenFile);
   state.login = 'intruso';
-  await assert.rejects(login(), /not allowed/);
-  assert.equal(tw.tokens, null); assert.ok(!fs.existsSync(tokenFile), 'no se guardan tokens de una cuenta no permitida');
-  state.login = 'streamer'; await login(); assert.equal(tw.user.login, 'streamer');
-  tw.logout();
+  const u = new URL(tw.authUrl());
+  const { tokens, who } = await tw.exchange({ code: 'CODE', state: u.searchParams.get('state') });
+  assert.equal(who.login, 'intruso'); assert.equal(tokens.accessToken, 'AT2');
+  assert.equal(tw.tokens, null); assert.equal(tw.user, null); assert.ok(!fs.existsSync(tokenFile), 'no se guardan tokens hasta adopt');
+  assert.equal(FakeWS.all.length, 0, 'no se conecta al chat');
 });

@@ -21,8 +21,6 @@ const WATCHDOG_MARGIN_MS = 2000;             // margen sobre keepalive_timeout_s
 const SEEN_MAX = 2000;                       // ids de mensaje recordados para idempotencia
 
 class AuthError extends Error { constructor(m){ super(m); this.code = 'AUTH'; } }
-// Otra cuenta intenta iniciar sesión mientras hay un evento en marcha: se rechaza (la configuración y el historial son de UNA cuenta).
-class BusyError extends Error { constructor(m){ super(m); this.code = 'ACCOUNT_BUSY'; } }
 
 class Twitch extends EventEmitter {
   constructor(o) {
@@ -37,8 +35,6 @@ class Twitch extends EventEmitter {
     this.eventsubUrl = o.eventsubUrl || EVENTSUB_URL;
     this.backoffBaseMs = o.backoffBaseMs ?? 1000;
     this.logger = o.log || (() => {});
-    this.allowLogin = o.allowLogin || (() => true);                 // (login) => boolean: ¿esta cuenta puede usar el panel? (modo remoto)
-    this.canChangeAccount = o.canChangeAccount || (() => true);   // () => boolean: ¿se puede cambiar de cuenta ahora?
     this.wdMargin = o.watchdogMarginMs ?? WATCHDOG_MARGIN_MS;
 
     this.tokens = null;          // {accessToken, refreshToken, expiresAt}
@@ -161,14 +157,6 @@ class Twitch extends EventEmitter {
     this.tokens = tokens; this.saveTokens();
     await this.setup();
     this.connect();
-  }
-  async handleCallback(query) {
-    // Se identifica a la cuenta ANTES de tocar la sesión actual: si es otra y hay un evento en marcha, se rechaza sin cambiar nada.
-    const { tokens: fresh, who } = await this.exchange(query);
-    if (!this.allowLogin(String(who.login || '').toLowerCase())) throw new AuthError('This Twitch account is not allowed to use the panel');
-    if (this.user && this.user.id !== who.user_id && !this.canChangeAccount())
-      throw new BusyError(`An event is in progress for @${this.user.login}; finish or cancel it before signing in with another account`);
-    await this.adopt(fresh);
   }
   /** Quién es el dueño de un token (endpoint validate), sin efectos secundarios. */
   async identify(accessToken) {
@@ -343,4 +331,4 @@ class Twitch extends EventEmitter {
   }
 }
 
-module.exports = { Twitch, AuthError, BusyError, SCOPES, EVENTSUB_URL };
+module.exports = { Twitch, AuthError, SCOPES, EVENTSUB_URL };
