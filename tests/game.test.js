@@ -366,3 +366,13 @@ test('si tras las ausencias queda un solo elegible, se salta la cuenta atrás y 
   await until(() => g.status === 'confirming'); chat(g, 'carla'); assert.equal(g.status, 'won');   // sigue siendo candidata: debe confirmar presencia
   g.cancel();
 });
+
+test('con un solo elegible en una ronda (aunque no sea un reemplazo) se salta la cuenta atrás y el roll', async () => {
+  const { g } = await setup({ names: ['ana', 'bob'], pick: first, config: { prizes: 2 } });
+  const seq = []; g.on('change', () => { if (seq[seq.length - 1] !== g.status) seq.push(g.status); });
+  assert.equal(await winOne(g), 'Ana');
+  await until(() => g.status === 'reveal' && g.cur && g.cur.name === 'Bob');
+  const afterWon = seq.slice(seq.lastIndexOf('won') + 1);
+  assert.ok(!afterWon.includes('countdown') && !afterWon.includes('rolling'), 'sin cuenta atrás ni roll: ' + afterWon);
+  g.cancel();
+});

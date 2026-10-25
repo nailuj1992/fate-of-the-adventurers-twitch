@@ -189,3 +189,34 @@ test('caída de conexión: no se declara ausente; al recuperarla hay plazo extra
   conn = 'connected'; e.onConnection('connected'); assert.equal(e.status, 'confirming'); assert.equal(e.cur.grace, true);
   chat(e, c); assert.equal(e.status, 'won');
 });
+
+test('barajado al iniciar: el orden de los participantes lo decide la función de barajado y queda anotado', () => {
+  const clock = makeClock();
+  const e = new Core.Engine({ now: clock.now, setT: clock.setT, clearT: clock.clearT, pick: first, shuffle: a => a.slice().reverse() });
+  assert.equal(e.start(people(4), { ...CFG, prizes: 2 }).ok, true);
+  assert.deepEqual(e.participants.map(p => p.key), ['diego', 'carla', 'bob', 'ana']);
+  assert.ok(e.history.some(h => h.key === 'shuffled'));
+  e.cancel();
+});
+
+test('secureShuffle devuelve una permutación (mismos elementos, sin tocar el original) y mezcla de verdad', () => {
+  const src = Array.from({ length: 30 }, (_, i) => i), copy = src.slice();
+  const out = Core.secureShuffle(src);
+  assert.deepEqual(src, copy, 'no modifica la lista original');
+  assert.deepEqual([...out].sort((a, b) => a - b), src, 'mismos elementos');
+  assert.notDeepEqual(out, src, 'con 30 elementos la probabilidad de quedar igual es 1/30!');
+});
+
+test('sin pick ni shuffle inyectados, el motor baraja por defecto; con pick inyectado conserva el orden', () => {
+  const clock = makeClock();
+  const a = new Core.Engine({ now: clock.now, setT: clock.setT, clearT: clock.clearT, pick: first });
+  a.start(people(5), { ...CFG, prizes: 2 });
+  assert.deepEqual(a.participants.map(p => p.key), ['ana', 'bob', 'carla', 'diego', 'elena']);
+  assert.ok(!a.history.some(h => h.key === 'shuffled'));
+  a.cancel();
+  const b = new Core.Engine({ now: clock.now, setT: clock.setT, clearT: clock.clearT });
+  b.start(Array.from({ length: 30 }, (_, i) => ({ name: 'P' + i, key: 'p' + i, userId: 'id_p' + i })), { ...CFG, prizes: 2 });
+  assert.ok(b.history.some(h => h.key === 'shuffled'));
+  assert.notDeepEqual(b.participants.map(p => p.key), Array.from({ length: 30 }, (_, i) => 'p' + i));
+  b.cancel();
+});

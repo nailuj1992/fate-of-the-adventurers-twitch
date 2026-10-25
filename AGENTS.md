@@ -52,7 +52,7 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 
 ## Domain rules (invariants — do not break them without tests and the maintainer's OK)
 
-- **Randomness:** only `crypto.getRandomValues` with rejection sampling (`secureIndex` in `core.js`). Never `Math.random` for choosing winners. The draw happens when the countdown ends, never in advance.
+- **Randomness:** only `crypto.getRandomValues` with rejection sampling (`secureIndex` in `core.js`). Never `Math.random` for choosing winners. The participant list is also shuffled at start with `secureShuffle` (Fisher–Yates over `secureIndex`); with an injected `pick` (tests) the shuffle is off unless a `shuffle` is injected. A draw with a single eligible person skips the countdown and the roll. The draw happens when the countdown ends, never in advance.
 - **Rounds and prizes:** `prizes` (1–50) main rounds; the Celestial is `CELESTIALS[round % 3]` (Niuzao → Yu'lon → Chi-ji). An **absence does not change the Celestial**; rotation only advances on a confirmed winner or a deserted round.
 - **Eligibility** is always *computed* from records (`eligible(round)`), never from a mutable pool: not a winner, not globally disqualified, not absent **in that same round**. An absent person may be drawn again in later rounds (even if the Celestial repeats) and in Xuen.
 - **Winners** are excluded forever; one prize per person. **Global disqualification** requires explicit confirmation + a written reason (≥ 3 chars) and excludes from every remaining round, Xuen included.
