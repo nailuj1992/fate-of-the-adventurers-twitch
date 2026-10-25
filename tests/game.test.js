@@ -304,6 +304,15 @@ test('validación al iniciar: inexistentes, formato, duplicados, mínimo y sin c
   tw.status = 'reconnecting'; assert.equal((await g.start(NAMES.slice(0, 5))).errorKey, 'err.twitch_not_connected');
   assert.equal(g.screen, 'admin');
 });
+test('parseLogins: colapsa espacios, quita la @ y las líneas vacías; separa inválidos y repetidos sin distinguir mayúsculas', () => {
+  const { parseLogins } = require('../game');
+  const r = parseLogins(['  Ana  ', '@Bob', '', '   ', 'ana', 'a b', 'x'.repeat(26), 'Carla_9', 'BOB']);
+  assert.deepEqual([...r.seen], [['ana', 'Ana'], ['bob', 'Bob'], ['carla_9', 'Carla_9']]);
+  assert.deepEqual(r.bad, ['a b', 'x'.repeat(26)]);
+  assert.deepEqual(r.dup, ['ana', 'BOB']);
+  assert.deepEqual(parseLogins('no es una lista'), { seen: new Map(), bad: [], dup: [] });
+});
+
 test('doble inicio simultáneo: solo uno arranca', async () => {
   const tw = new FakeTwitch(), g = new Game({ twitch: tw, config: FAST, unsafeConfig: true });
   const [a, b] = await Promise.all([g.start(NAMES.slice(0, 4)), g.start(NAMES.slice(0, 4))]);

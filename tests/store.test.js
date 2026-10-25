@@ -29,6 +29,24 @@ test('configuración dañada: se ignora y se usan los valores por defecto', () =
   assert.deepEqual(s.loadConfig('9'), {});
 });
 
+test('historial: cada línea es un JSON; el de un streamer no toca al de otro; un ID inválido no escribe nada', () => {
+  const root = tmp(), s = new StreamerStore(root);
+  s.appendHistory('111', { event: 'e1', id: 1 }); s.appendHistory('111', { event: 'e1', id: 2 }); s.appendHistory('222', { event: 'e2', id: 1 });
+  assert.deepEqual(fs.readFileSync(s.historyFile('111'), 'utf8').trim().split('\n').map(JSON.parse), [{ event: 'e1', id: 1 }, { event: 'e1', id: 2 }]);
+  assert.equal(fs.readFileSync(s.historyFile('222'), 'utf8'), '{"event":"e2","id":1}\n');
+  assert.throws(() => s.appendHistory('../x', {}), /Invalid Twitch user id/);
+  assert.deepEqual(fs.readdirSync(path.join(root, 'streamers')).sort(), ['111', '222']);
+});
+
+test('streamers guardados: solo carpetas con ID numérico; fecha de tokens solo si existen', () => {
+  const root = tmp(), s = new StreamerStore(root);
+  assert.deepEqual(s.savedStreamerIds(), [], 'sin carpeta data/streamers no falla');
+  for (const name of ['111', '222', 'abc', '../x']) fs.mkdirSync(path.join(root, 'streamers', name.replace(/\.\.\//, '')), { recursive: true });
+  fs.writeFileSync(s.tokenFile('111'), '{}');
+  assert.deepEqual(s.savedStreamerIds().sort(), ['111', '222']);
+  assert.equal(typeof s.tokenMtime('111'), 'number'); assert.equal(s.tokenMtime('222'), null);
+});
+
 test('migración: los archivos antiguos los hereda solo el primer streamer', () => {
   const root = tmp();
   fs.writeFileSync(path.join(root, 'config.json'), JSON.stringify({ prizes: 4 }));

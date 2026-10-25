@@ -5,8 +5,6 @@
  * viven aquí. El navegador solo muestra el estado y envía órdenes.
  */
 const EventEmitter = require('node:events');
-const fs = require('node:fs');
-const path = require('node:path');
 const Core = require('./core');
 
 const LOGIN_RE = /^[A-Za-z0-9_]{1,25}$/;
@@ -14,17 +12,33 @@ const { ok } = Core;
 // Errores como los del motor (código + parámetros, ver Core.err) más datos extra, p. ej. el detalle por campo de una configuración inválida.
 const err = (code, params = {}, extra = {}) => ({ ...Core.err(code, params), ...extra });
 
+/**
+ * Normaliza la lista que escribe el presentador: espacios colapsados, sin «@» inicial, sin líneas vacías.
+ * Devuelve { seen: Map(login en minúsculas → nombre escrito), bad: [nombres con formato inválido], dup: [nombres repetidos] }.
+ */
+function parseLogins(rawNames) {
+  const seen = new Map(), bad = [], dup = [];
+  for (const raw of Array.isArray(rawNames) ? rawNames : []) {
+    const n = String(raw).replace(/\s+/g, ' ').trim().replace(/^@/, '');
+    if (!n) continue;
+    if (!LOGIN_RE.test(n)) { bad.push(n); continue; }
+    const k = n.toLowerCase();
+    if (seen.has(k)) dup.push(n); else seen.set(k, n);
+  }
+  return { seen, bad, dup };
+}
+
 class Game extends EventEmitter {
   /**
    * config: configuración guardada (en segundos, ver Core.DEFAULT_CONFIG).
    * store: StreamerStore opcional; con él, configuración e historial se guardan por cuenta de Twitch (owner = ID de usuario).
    * unsafeConfig / pick / clock: solo para pruebas (duraciones fraccionarias, extracción determinista, reloj simulado {now, setT, clearT}).
    */
-  constructor({ twitch, config = {}, store = null, historyFile = null, pick, unsafeConfig = false, clock = {} }) {
+  constructor({ twitch, config = {}, store = null, pick, unsafeConfig = false, clock = {} }) {
     super();
-    this.twitch = twitch; this.store = store; this.historyFile = historyFile;
+    this.twitch = twitch; this.store = store;
     this.owner = null;   // ID de Twitch del streamer dueño de la configuración y del historial actuales
-     this.unsafe = unsafeConfig;
+    this.unsafe = unsafeConfig;
     this.config = Core.validateConfig(config, undefined, unsafeConfig).config;
     this.engine = new Core.Engine({
       pick, now: clock.now, setT: clock.setT, clearT: clock.clearT, connection: () => twitch.status,
@@ -56,15 +70,9 @@ class Game extends EventEmitter {
     if (!this.owner || !this.store) return;
     try { this.store.saveConfig(this.owner, this.config); } catch (e) { console.error('config:', e.message); }
   }
-  logFile() { return this.owner && this.store ? this.store.historyFile(this.owner) : this.historyFile; }
-
   persistLog(e, eventId) {
-    const file = this.logFile();
-    if (!file) return;
-    try {
-      fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.appendFileSync(file, JSON.stringify({ event: eventId, ...e }) + '\n');
-    } catch (error) { console.error('historial:', error.message); }
+    if (!this.owner || !this.store) return;
+    try { this.store.appendHistory(this.owner, { event: eventId, ...e }); } catch (error) { console.error('historial:', error.message); }
   }
 
   /* ---------- accesores de solo lectura (pruebas y depuración) ---------- */
@@ -93,14 +101,7 @@ class Game extends EventEmitter {
     if (this.engine.screen !== 'admin' || this.starting) return err('already_running');
     this.starting = true;
     try {
-      const seen = new Map(), bad = [], dup = [];
-      for (const raw of Array.isArray(rawNames) ? rawNames : []) {
-        const n = String(raw).replace(/\s+/g, ' ').trim().replace(/^@/, '');
-        if (!n) continue;
-        if (!LOGIN_RE.test(n)) { bad.push(n); continue; }
-        const k = n.toLowerCase();
-        if (seen.has(k)) dup.push(n); else seen.set(k, n);
-      }
+      const { seen, bad, dup } = parseLogins(rawNames);
       if (bad.length) return err('invalid_logins', { list: bad.join(', ') });
       if (dup.length) return err('duplicate_names', { list: dup.join(', ') });
       // La configuración se valida contra el número real de participantes (los premios no pueden superarlo).
@@ -132,4 +133,4 @@ class Game extends EventEmitter {
   handleChat(m) { return this.engine.handleChat(m); }
 }
 
-module.exports = { Game, ok, err };
+module.exports = { Game, ok, err, parseLogins };

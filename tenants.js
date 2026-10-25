@@ -10,8 +10,6 @@
  *   - Modo remoto: la sesión del panel (cookie) lleva el ID del streamer y el servidor resuelve su tenant con `get(id)`.
  */
 const EventEmitter = require('node:events');
-const fs = require('node:fs');
-const path = require('node:path');
 const { Twitch, AuthError } = require('./twitch');
 const { Game } = require('./game');
 const { ID_RE } = require('./store');
@@ -76,16 +74,14 @@ class Tenants extends EventEmitter {
 
   /** Modo local: reconecta a los streamers que ya habían iniciado sesión; ve el más reciente. */
   loadSaved() {
-    const dir = path.join(this.store.root, 'streamers');
-    let names = [];
-    try { names = fs.readdirSync(dir); } catch { return; }
     let best = null;
-    for (const name of names) {
-      if (!ID_RE.test(name) || this.map.size >= this.max) continue;
-      let st; try { st = fs.statSync(this.store.tokenFile(name)); } catch { continue; }
-      const t = this.build(name);
+    for (const id of this.store.savedStreamerIds()) {
+      if (this.map.size >= this.max) continue;
+      const mtime = this.store.tokenMtime(id);
+      if (mtime === null) continue;                 // sin tokens guardados: no hay sesión que recuperar
+      const t = this.build(id);
       t.twitch.init().catch(e => console.error('[twitch] init:', String(e.message).replace(/[\u0000-\u001f\u007f]+/g, ' ')));
-      if (!best || st.mtimeMs > best.mtime) best = { t, mtime: st.mtimeMs };
+      if (!best || mtime > best.mtime) best = { t, mtime };
     }
     if (best && this.local) this.setCurrent(best.t);
   }
