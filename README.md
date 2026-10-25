@@ -39,7 +39,7 @@ node server.js
 Open **http://localhost:3000** (use `localhost`, not the IP) and press **Connect with Twitch**. Authorize with the
 account that will read the chat (normally yours, the channel owner's). The only permission requested is
 **`user:read:chat`**. The app shows the status: *connected / reconnecting / disconnected*.
-Tokens are stored in `data/tokens.json` (plain text, only on your PC); you will not need to re-authorize on every start.
+Each account's tokens are stored in `data/streamers/<twitch-id>/tokens.json` (plain text, only on your PC; older versions used `data/tokens.json`, which is no longer read: connect once again); you will not need to re-authorize on every start.
 "Sign out of Twitch" deletes them.
 
 ## 4. Set up a draw (number of prizes and timings)
@@ -67,7 +67,7 @@ In the admin panel, **Settings** tab:
 
 **Example: an 8-prize draw with 60 s to confirm** → paste at least 8 names in *Participants*, in *Settings* enter `8` for "Number of winners" and `60` for "Time to confirm presence", check the preview, press **Start draw** and confirm.
 
-The settings are stored **on the server** (`data/streamers/<twitch-id>/config.json`, no credentials) and persist between sessions. **Each Twitch account has its own folder** (keyed by its numeric user ID, which never changes): settings and history are never shared or overwritten between streamers, and signing in with another account loads that account's own settings. While an event is running, signing in with a *different* account is rejected. **They are locked once the event starts**: the server rejects any change until it ends or is cancelled/restarted with confirmation. Defaults and limits live in a single place: `core.js → DEFAULT_CONFIG / LIMITS`.
+The settings are stored **on the server** (`data/streamers/<twitch-id>/config.json`, no credentials) and persist between sessions. **Each Twitch account has its own folder** (keyed by its numeric user ID, which never changes): settings and history are never shared or overwritten between streamers, and signing in with another account loads that account's own settings. Each signed-in account runs its own event independently. **They are locked once the event starts**: the server rejects any change until it ends or is cancelled/restarted with confirmation. Defaults and limits live in a single place: `core.js → DEFAULT_CONFIG / LIMITS`.
 
 ## 5. How the event runs (automatic flow)
 After **Start draw** everything advances on its own, using your durations:
@@ -115,9 +115,12 @@ By default the server is local-only (`127.0.0.1`, no sign-in to the panel). To r
 2. **Volume**: add a volume and mount it (e.g. at `/data`); set `DATA_DIR=/data` so tokens, settings and history survive redeploys.
 3. **Variables** (Railway → Variables, never in the repository): `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, `TWITCH_CHANNEL`, `DATA_DIR`, and
    - `PUBLIC_URL`: the public HTTPS origin, e.g. `https://your-app.up.railway.app` (no path). Setting it turns on **remote mode**.
-   - `ALLOWED_LOGINS`: Twitch logins allowed to use the panel, comma-separated (defaults to `TWITCH_CHANNEL`).
+   - `ALLOWED_LOGINS`: Twitch logins allowed to sign in, comma-separated, or `*` to let **any** Twitch account in (defaults to `TWITCH_CHANNEL`).
+   - `MAX_STREAMERS` (optional, default 20): how many streamers can be connected at once; each keeps its own connection to Twitch.
 4. **Twitch console**: add `PUBLIC_URL/auth/callback` to the application's OAuth Redirect URLs (it must match `TWITCH_REDIRECT_URI`, which defaults to that value).
 5. Open `PUBLIC_URL` and sign in with Twitch.
+
+**Several streamers at once:** every streamer who signs in gets their own Twitch connection, tokens, draw engine, settings and history; the session cookie carries their Twitch ID, so each person only sees and controls their own event. In remote mode each streamer reads **their own channel's chat** (`TWITCH_CHANNEL` is ignored). A streamer who logs out with no event running is released from memory; with an event running it is kept until it ends.
 
 In remote mode: the panel, the state stream and every command require a session (HttpOnly, Secure, SameSite=Lax cookie, 12 h) obtained by signing in with an allowed account; any other account is rejected before anything is stored. `Host` and `Origin` must match `PUBLIC_URL`. The server refuses to start without an `https://` `PUBLIC_URL` and a list of allowed accounts. Sessions live in memory, so a restart asks you to sign in again (the Twitch tokens persist on the volume). `/healthz` returns `ok` and no data.
 
@@ -169,5 +172,6 @@ twitch.js        OAuth + EventSub WebSocket (reconnection, dedupe, token refresh
 public/index.html  interface (only shows the state and sends commands)
 tests/           automated tests
 store.js         per-streamer data: data/streamers/<twitch-id>/ (config + history)
-data/            tokens.json and streamers/ (generated, outside version control)
+tenants.js        one connection + engine per signed-in streamer
+data/            streamers/<twitch-id>/ with tokens.json, config.json and historial.jsonl (generated, outside version control)
 ```

@@ -17,6 +17,7 @@ class StreamerStore {
     return path.join(this.root, 'streamers', String(id));
   }
   configFile(id) { return path.join(this.dir(id), 'config.json'); }
+  tokenFile(id) { return path.join(this.dir(id), 'tokens.json'); }   // tokens de Twitch de ESA cuenta (0600)
   historyFile(id) { return path.join(this.dir(id), 'historial.jsonl'); }
 
   /** Configuración guardada del streamer ({} si no tiene o está dañada: se usarán los valores por defecto). */

@@ -33,6 +33,7 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 | `core.js` | **Shared** pure engine (no DOM, no network): default settings and limits, config validation, Celestial rotation, eligibility, the event state machine with its single phase scheduler, history entries. Works in Node and in the browser (UMD). |
 | `i18n.js` + `locales/en.js`, `locales/es.js` | **Shared** i18n module and catalogs (flat keys, `{params}`, plural suffixes `_one`/`_other`, `{ $t: 'key' }` fragments). |
 | `game.js` | Twitch wrapper around the engine: verifies the participant list against Twitch, resolves user IDs, persists settings and history per streamer (owner = Twitch user ID, set from the `identity` event). |
+| `tenants.js` | One tenant (Twitch connection + `Game`) per signed-in streamer, keyed by Twitch user ID; login/logout, allow-list, `MAX_STREAMERS`; `local` mode keeps a `current` tenant. |
 | `railway.json` | Railway deploy settings (start command, `/healthz` check). |
 | `store.js` | `StreamerStore`: per-streamer data under `data/streamers/<twitch-id>/` (`config.json`, `historial.jsonl`); validates the ID (digits only); migrates legacy single-file data to the first account that signs in. |
 | `server.js` | Local HTTP server (`127.0.0.1` only): static files, OAuth routes, SSE state stream, command routes (`/api/*`), server-side error pages (translated by cookie). |
@@ -42,7 +43,7 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 | `tests/` | `core.test.js` (engine with a simulated clock), `game.test.js` (wrapper, real timers), `twitch.test.js` (OAuth/EventSub with fake WebSocket/fetch), `i18n.test.js` (parity and key coverage). |
 | `iniciar.bat` | Windows launcher (creates `.env` from `.env.example`, starts the server, opens the browser). |
 | `.env.example` | Environment template. The real `.env` is git-ignored. |
-| `data/` | Generated at runtime: `tokens.json` and `streamers/<twitch-id>/{config.json,historial.jsonl}`. **Git-ignored. Never commit.** |
+| `data/` | Generated at runtime: `streamers/<twitch-id>/{tokens.json,config.json,historial.jsonl}` (legacy `tokens.json` at the root is not read). **Git-ignored. Never commit.** |
 
 ## Domain rules (invariants — do not break them without tests and the maintainer's OK)
 
@@ -85,7 +86,8 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 
 ## Restrictions
 
-- **Streamer isolation**: settings and history must always be read/written through `StreamerStore` keyed by the authenticated Twitch user ID, never through a shared file. Twitch refuses a login from a different account while an event is running (`canChangeAccount`).
+- **Streamer isolation**: settings and history must always be read/written through `StreamerStore` keyed by the authenticated Twitch user ID, never through a shared file. Each account has its own tenant (see `tenants.js`).
+- **Multi-streamer isolation**: the session cookie maps to a streamer ID and `server.js` must resolve the tenant ONLY from it (never from a request parameter or a shared global); no state (engine, config, history, tokens, SSE clients) may be shared between tenants. Every new route goes through `tenantOf(req)`.
 - **Remote mode** (`PUBLIC_URL` set, e.g. Railway): every panel route except `/healthz`, the login page and OAuth requires a session; only `ALLOWED_LOGINS` accounts can sign in (checked in `twitch.js` before any token is stored); Host/Origin must equal `PUBLIC_URL`; the server must refuse to start without an https `PUBLIC_URL` and a non-empty allow-list. Never weaken these. Local mode (no `PUBLIC_URL`) must keep listening on `127.0.0.1` only. `DATA_DIR` moves the data folder (the Railway volume). Deploy steps are in the README.
 - **Never commit or print secrets**: `.env`, `TWITCH_CLIENT_SECRET`, `data/tokens.json`, access/refresh tokens. If one leaks, tell the maintainer immediately so it can be rotated.
 - **Never push to `master` directly**; never push tags; never force-push.
