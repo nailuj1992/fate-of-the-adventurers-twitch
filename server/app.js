@@ -15,7 +15,7 @@ const pages = require('./pages');
 const SESSION_COOKIE = 'celestiales_sid';
 const SESSION_MS = 12 * 3600e3;
 const MAX_BODY_BYTES = 65536;
-const JSON_TYPE = /^application\/json/;
+const JSON_TYPE = 'application/json';
 const LOCAL_HOST_RE = /^(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 // Error de la API con código HTTP; viaja como los del motor: {ok:false, errorKey:'err.<code>', errorParams, error en inglés}.
@@ -23,6 +23,8 @@ class HttpError extends Error { constructor(status, code, params) { super(code);
 
 const json = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(obj)); };
 const fail = (res, status, code, params) => json(res, status, Core.err(code, params));
+const isJson = req => (req.headers['content-type'] || '').startsWith(JSON_TYPE);
+const needsSession = p => p.startsWith('/api/') || p === '/auth/logout';   // el resto (login, OAuth, estáticos) es público
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -84,6 +86,45 @@ function createApp(tenants, { remote = false, publicUrl = '' } = {}) {
   tenants.on('released', t => { const off = detach.get(t); if (off) { off(); detach.delete(t); } });
   tenants.on('current', () => hub.sendAll());
 
+  /* ---------- rutas: cada manejador recibe { req, res, url, p, tenant } ---------- */
+  const getState = ({ res, tenant }) => json(res, 200, tenant.game.publicState());
+  function getEvents({ res, tenant }) {
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
+    hub.add(res, tenant.id);
+  }
+  function getLogin({ req, res }) {
+    try { res.writeHead(302, { Location: tenants.authUrl() }); res.end(); }
+    catch (e) { console.error('[twitch]', forLog(e.message)); pages.errorPage(req, res, 500, 'srv.notConfigured', 'srv.checkEnv'); }
+  }
+  async function getCallback({ req, res, url }) {
+    try {
+      const t = await tenants.login(Object.fromEntries(url.searchParams));
+      const headers = { Location: '/' };
+      if (remote) headers['Set-Cookie'] = `${SESSION_COOKIE}=${sessions.open(t.id)}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${SESSION_MS / 1000}`;
+      res.writeHead(302, headers); res.end();
+    }
+    catch (e) { console.error('[twitch] callback:', forLog(e.message)); pages.errorPage(req, res, 400, 'srv.connectFailed'); }
+  }
+  function postLogout({ req, res, tenant }) {
+    if (!isJson(req)) throw new HttpError(415, 'json_required');
+    sessions.close(req);
+    tenants.logout(tenant);
+    json(res, 200, { ok: true });
+  }
+  async function postCommand({ req, res, p, tenant }) {
+    if (!isJson(req)) throw new HttpError(415, 'json_required');
+    const fn = Object.hasOwn(ROUTES, p.slice('/api/'.length)) ? ROUTES[p.slice('/api/'.length)] : null;
+    if (!fn) throw new HttpError(404, 'unknown_command');
+    json(res, 200, await fn(tenant.game, await readBody(req)));
+  }
+  const GET_ROUTES = new Map([['/api/state', getState], ['/api/events', getEvents], ['/auth/login', getLogin], ['/auth/callback', getCallback]]);
+  function routeFor(method, p) {
+    if (method === 'GET') return GET_ROUTES.get(p);
+    if (method !== 'POST') return undefined;
+    if (p === '/auth/logout') return postLogout;
+    return p.startsWith('/api/') ? postCommand : undefined;
+  }
+
   async function handle(req, res) {
     const url = new URL(req.url, 'http://localhost');
     const p = url.pathname;
@@ -91,43 +132,14 @@ function createApp(tenants, { remote = false, publicUrl = '' } = {}) {
     if (!allowed(req)) { res.writeHead(403); return res.end('Forbidden'); }
     const tenant = tenantOf(req);
 
-    if (req.method === 'GET' && (p === '/' || p === '/index.html')) return tenant ? pages.panel(res) : pages.loginPage(req, res);
-    if (req.method === 'GET' && pages.serveStatic(p, res)) return;
+    if (req.method === 'GET') {
+      if (p === '/' || p === '/index.html') return tenant ? pages.panel(res) : pages.loginPage(req, res);
+      if (pages.serveStatic(p, res)) return;
+    }
     // Todo lo demás del panel (estado, eventos y órdenes) exige sesión en modo remoto.
-    if ((p.startsWith('/api/') || p === '/auth/logout') && !tenant) throw new HttpError(401, 'sign_in_required');
-    if (req.method === 'GET' && p === '/api/state') return json(res, 200, tenant.game.publicState());
-    if (req.method === 'GET' && p === '/api/events') {
-      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
-      return hub.add(res, tenant.id);
-    }
-
-    // ---- OAuth ----
-    if (req.method === 'GET' && p === '/auth/login') {
-      try { res.writeHead(302, { Location: tenants.authUrl() }); return res.end(); }
-      catch (e) { console.error('[twitch]', forLog(e.message)); return pages.errorPage(req, res, 500, 'srv.notConfigured', 'srv.checkEnv'); }
-    }
-    if (req.method === 'GET' && p === '/auth/callback') {
-      try {
-        const t = await tenants.login(Object.fromEntries(url.searchParams));
-        const headers = { Location: '/' };
-        if (remote) headers['Set-Cookie'] = `${SESSION_COOKIE}=${sessions.open(t.id)}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${SESSION_MS / 1000}`;
-        res.writeHead(302, headers); return res.end();
-      }
-      catch (e) { console.error('[twitch] callback:', forLog(e.message)); return pages.errorPage(req, res, 400, 'srv.connectFailed'); }
-    }
-    if (req.method === 'POST' && p === '/auth/logout') {
-      if (!JSON_TYPE.test(req.headers['content-type'] || '')) throw new HttpError(415, 'json_required');
-      sessions.close(req);
-      tenants.logout(tenant); return json(res, 200, { ok: true });
-    }
-
-    // ---- órdenes ----
-    if (req.method === 'POST' && p.startsWith('/api/')) {
-      if (!JSON_TYPE.test(req.headers['content-type'] || '')) throw new HttpError(415, 'json_required');
-      const fn = ROUTES[p.slice(5)];
-      if (!fn) throw new HttpError(404, 'unknown_command');
-      return json(res, 200, await fn(tenant.game, await readBody(req)));
-    }
+    if (needsSession(p) && !tenant) throw new HttpError(401, 'sign_in_required');
+    const route = routeFor(req.method, p);
+    if (route) return route({ req, res, url, p, tenant });
     res.writeHead(404); res.end('Not found');
   }
 
@@ -144,7 +156,7 @@ function createApp(tenants, { remote = false, publicUrl = '' } = {}) {
     }
   });
   server.on('close', () => hub.close());
-    return server;
+  return server;
 }
 
-module.exports = { createApp, MAX_BODY_BYTES };
+module.exports = { createApp };
