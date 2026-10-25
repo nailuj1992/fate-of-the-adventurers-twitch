@@ -2,9 +2,11 @@
 
 > 🌐 **English** · [Español](README.es.md)
 
+▶ **Live version:** https://fate-of-the-adventurers-twitch-production.up.railway.app/ (hosted on Railway; sign in with Twitch. Access is limited to the accounts the maintainer allows)
+
 A **configurable** draw (1 to 50 prizes) with **automatic presence confirmation through Twitch chat**
 (official API: OAuth + EventSub over WebSocket). The four Celestials of Pandaria take turns in rounds, and Xuen recovers any prize left without an owner.
-Everything runs on your PC: a local Node.js server and a web page. No npm dependencies and no third-party services (only Twitch).
+You can use the hosted version above or run everything on your PC: a Node.js server and a web page. No npm dependencies and no third-party services (only Twitch; Railway only if you host it there).
 
 ## Requirements
 - **Node.js 22 or later** (uses native `fetch` and `WebSocket`). Check with `node --version`.

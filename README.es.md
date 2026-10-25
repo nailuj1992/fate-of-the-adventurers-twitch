@@ -2,9 +2,11 @@
 
 > 🌐 [English](README.md) · **Español**
 
+▶ **Versión en línea:** https://fate-of-the-adventurers-twitch-production.up.railway.app/ (alojada en Railway; inicia sesión con Twitch. El acceso se limita a las cuentas que permita el mantenedor)
+
 Sorteo **configurable** (de 1 a 50 premios) con **confirmación automática de presencia por el chat de Twitch**
 (API oficial: OAuth + EventSub por WebSocket). Los cuatro Celestiales de Pandaria se turnan en rondas y Xuen recupera los premios que queden sin dueño.
-Todo corre en tu PC: un servidor Node.js local y una página web. Sin dependencias npm ni servicios de terceros (solo Twitch).
+Puedes usar la versión en línea de arriba o ejecutar todo en tu PC: un servidor Node.js y una página web. Sin dependencias npm ni servicios de terceros (solo Twitch; Railway solo si lo alojas allí).
 
 ## Requisitos
 - **Node.js 22 o superior** (usa `fetch` y `WebSocket` nativos). Comprueba con `node --version`.
