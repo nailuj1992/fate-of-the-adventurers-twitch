@@ -10,6 +10,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Twitch } = require('./twitch');
 const { Game } = require('./game');
+const { StreamerStore } = require('./store');
 const I18n = require('./i18n');
 
 // ---- .env mínimo (sin dotenv) ----
@@ -40,13 +41,16 @@ setInterval(() => { for (const res of clients) res.write(': ping\n\n'); }, 15000
 
 // ---- utilidades HTTP ----
 const json = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(obj)); };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 // Página de error del servidor (OAuth): en el idioma elegido en la interfaz (cookie celestiales_lang; por defecto inglés).
-const page = (req, res, code, titleKey, body) => {
-  const loc = I18n.fromCookie(req.headers.cookie), title = I18n.tIn(loc, titleKey);
+const page = (req, res, code, titleKey, bodyKey) => {
+  const loc = I18n.fromCookie(req.headers.cookie), title = I18n.tIn(loc, titleKey), body = bodyKey ? I18n.tIn(loc, bodyKey) : '';
   res.writeHead(code, { 'Content-Type': 'text/html; charset=utf-8' });
-  res.end(`<!doctype html><html lang="${loc}"><meta charset="utf-8"><title>${title}</title><body style="font:18px Georgia;background:#0a1226;color:#f6e2a6;padding:3em"><h1>${title}</h1><p>${body}</p><p><a style="color:#3fbf9a" href="/">${I18n.tIn(loc, 'srv.back')}</a></p>`);
+  // Solo texto fijo de i18n (se escapa igualmente): el mensaje de error nunca se refleja en la página, puede venir de la URL de retorno de Twitch; va a la consola.
+  res.end(`<!doctype html><html lang="${esc(loc)}"><meta charset="utf-8"><title>${esc(title)}</title><body style="font:18px Georgia;background:#0a1226;color:#f6e2a6;padding:3em"><h1>${esc(title)}</h1><p>${esc(body)}</p><p><a style="color:#3fbf9a" href="/">${esc(I18n.tIn(loc, 'srv.back'))}</a></p>`);
 };
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// Texto para la consola: sin saltos de línea ni caracteres de control (evita inyectar líneas falsas en el registro).
+const forLog = s => String(s).replace(/[\u0000-\u001f\u007f]+/g, ' ').slice(0, 300);
 // Protección frente a DNS rebinding y peticiones de otros orígenes.
 function allowed(req) {
   const host = req.headers.host || '';
@@ -103,11 +107,11 @@ return http.createServer(async (req, res) => {
     // ---- OAuth ----
     if (req.method === 'GET' && p === '/auth/login') {
       try { res.writeHead(302, { Location: twitch.authUrl() }); return res.end(); }
-      catch (e) { return page(req, res, 500, 'srv.notConfigured', esc(e.message) + '. ' + I18n.tIn(I18n.fromCookie(req.headers.cookie), 'srv.checkEnv')); }
+      catch (e) { console.error('[twitch]', forLog(e.message)); return page(req, res, 500, 'srv.notConfigured', 'srv.checkEnv'); }
     }
     if (req.method === 'GET' && p === '/auth/callback') {
       try { await twitch.handleCallback(Object.fromEntries(url.searchParams)); res.writeHead(302, { Location: '/' }); return res.end(); }
-      catch (e) { return page(req, res, 400, 'srv.connectFailed', esc(e.message)); }
+      catch (e) { console.error('[twitch] callback:', forLog(e.message)); return page(req, res, 400, 'srv.connectFailed'); }
     }
     if (req.method === 'POST' && p === '/auth/logout') {
       if (!/^application\/json/.test(req.headers['content-type'] || '')) return json(res, 415, { ok: false, error: 'Content-Type debe ser application/json' });
@@ -133,15 +137,9 @@ if (require.main === module) {
     redirectUri: REDIRECT_URI, channel: process.env.TWITCH_CHANNEL,
     tokenFile: path.join(DATA, 'tokens.json'), log: m => console.log('[twitch]', m),
   });
-  // Configuración del sorteo: se guarda en el servidor (no en el navegador) y no contiene credenciales.
-  const CONFIG_FILE = path.join(DATA, 'config.json');
-  let saved = {};
-  try { saved = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); } catch {}
-  const game = new Game({ twitch, config: saved, historyFile: path.join(DATA, 'historial.jsonl') });
-  game.on('config', cfg => {
-    try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2)); }
-    catch (e) { console.error('config:', e.message); }
-  });
+  // Configuración e historial: en el servidor (no en el navegador), sin credenciales y separados por cuenta de Twitch (data/streamers/<id>/).
+  const game = new Game({ twitch, store: new StreamerStore(DATA) });
+  twitch.canChangeAccount = () => game.screen === 'admin';   // con un evento en marcha no se admite iniciar sesión con otra cuenta
   createApp(twitch, game).listen(PORT, '127.0.0.1', () => {
     console.log('\n' + tc('srv.listening', { url: `http://localhost:${PORT}` }));
     if (!twitch.configured) console.log(tc('srv.missingCreds'));

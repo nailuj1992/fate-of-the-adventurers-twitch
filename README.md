@@ -67,7 +67,7 @@ In the admin panel, **Settings** tab:
 
 **Example: an 8-prize draw with 60 s to confirm** → paste at least 8 names in *Participants*, in *Settings* enter `8` for "Number of winners" and `60` for "Time to confirm presence", check the preview, press **Start draw** and confirm.
 
-The settings are stored **on the server** (`data/config.json`, no credentials) and persist between sessions. **They are locked once the event starts**: the server rejects any change until it ends or is cancelled/restarted with confirmation. Defaults and limits live in a single place: `core.js → DEFAULT_CONFIG / LIMITS`.
+The settings are stored **on the server** (`data/streamers/<twitch-id>/config.json`, no credentials) and persist between sessions. **Each Twitch account has its own folder** (keyed by its numeric user ID, which never changes): settings and history are never shared or overwritten between streamers, and signing in with another account loads that account's own settings. While an event is running, signing in with a *different* account is rejected. **They are locked once the event starts**: the server rejects any change until it ends or is cancelled/restarted with confirmation. Defaults and limits live in a single place: `core.js → DEFAULT_CONFIG / LIMITS`.
 
 ## 5. How the event runs (automatic flow)
 After **Start draw** everything advances on its own, using your durations:
@@ -103,14 +103,14 @@ The Celestial **exclusive** to the recovery rounds; it is not a mandatory trial.
 - If the candidates run out, the remaining prizes stay **permanently unassigned** and the event ends as incomplete.
 
 ### States and history
-Each prize has a state: *pending*, *in progress*, *delivered*, *in recovery* (deserted round), *recovered by Xuen* or *unassigned*. The screen shows prizes delivered / recovered / pending, and tells **absence events** apart from **unique absent people**. The history (on screen and in `data/historial.jsonl`) carries the prize, the Celestial and whether it was a main or a recovery round.
+Each prize has a state: *pending*, *in progress*, *delivered*, *in recovery* (deserted round), *recovered by Xuen* or *unassigned*. The screen shows prizes delivered / recovered / pending, and tells **absence events** apart from **unique absent people**. The history (on screen and in `data/streamers/<twitch-id>/historial.jsonl`) carries the prize, the Celestial and whether it was a main or a recovery round.
 
 **OBS:** add a *Browser source* with `http://localhost:3000/?view=presentation` (no controls; the buttons only appear when you hover the bottom area). You can also use the `P` key in the normal panel.
 
 ## Languages (i18n)
 The interface is available in **English (default)** and **Spanish**, following the same convention as DocFlow: English is the default language **regardless of the browser's language**.
 - **EN | ES switch** in the top-right corner. The choice is remembered in the browser (`localStorage`: `celestiales.locale`) and can also be forced with `?lang=es` (handy in the OBS browser source: `http://localhost:3000/?view=presentation&lang=es`).
-- Switching is instant and translates **everything**, including the history already generated: the engine stores *keys and parameters* and the page translates them into the active language. `data/historial.jsonl` also stores the English text.
+- Switching is instant and translates **everything**, including the history already generated: the engine stores *keys and parameters* and the page translates them into the active language. `historial.jsonl` also stores the English text.
 - The server's error pages (OAuth) use the chosen language (`celestiales_lang` cookie). The server console is in English; with `LANG_UI=es` it prints in Spanish.
 - Participant names and the reasons you type are **never translated**.
 - **Texts:** `locales/en.js` and `locales/es.js` (including the Celestials' narrative texts, `story.*`). **Adding a language:** copy `locales/en.js` to `locales/xx.js`, translate it, register it in `i18n.js` (`SUPPORTED` and the loaders at the top), in `server.js` (shared-files list) and as a `<script>` in `public/index.html`/`index.html`. A missing key falls back to the English one. The tests check that both catalogs have the same keys and parameters and that every used key exists.
@@ -154,5 +154,6 @@ server.js        local HTTP server, OAuth, SSE and commands
 twitch.js        OAuth + EventSub WebSocket (reconnection, dedupe, token refresh)
 public/index.html  interface (only shows the state and sends commands)
 tests/           automated tests
-data/            tokens.json, config.json and historial.jsonl (generated, outside version control)
+store.js         per-streamer data: data/streamers/<twitch-id>/ (config + history)
+data/            tokens.json and streamers/ (generated, outside version control)
 ```

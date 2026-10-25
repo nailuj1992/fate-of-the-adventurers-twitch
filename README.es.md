@@ -66,7 +66,7 @@ En el panel de administración, pestaña **Configuración**:
 
 **Ejemplo: sorteo de 8 premios con 60 s de confirmación** → pega al menos 8 nombres en *Participantes*, en *Configuración* pon `8` en «Cantidad de ganadores» y `60` en «Tiempo para confirmar presencia», comprueba la vista previa, pulsa **Iniciar sorteo** y confirma.
 
-La configuración se guarda **en el servidor** (`data/config.json`, sin credenciales) y persiste entre sesiones. **Queda bloqueada al iniciar el evento**: el servidor rechaza cualquier cambio hasta que termine o se cancele/reinicie con confirmación. Los valores por defecto y los límites viven en un solo sitio: `core.js → DEFAULT_CONFIG / LIMITS`.
+La configuración se guarda **en el servidor** (`data/streamers/<id-de-twitch>/config.json`, sin credenciales) y persiste entre sesiones. **Cada cuenta de Twitch tiene su propia carpeta** (identificada por su ID numérico, que no cambia): la configuración y el historial nunca se comparten ni se pisan entre streamers, e iniciar sesión con otra cuenta carga la configuración de esa cuenta. Con un evento en marcha se rechaza iniciar sesión con una cuenta *distinta*. **Queda bloqueada al iniciar el evento**: el servidor rechaza cualquier cambio hasta que termine o se cancele/reinicie con confirmación. Los valores por defecto y los límites viven en un solo sitio: `core.js → DEFAULT_CONFIG / LIMITS`.
 
 ## 5. Cómo transcurre el evento (flujo automático)
 Tras **Iniciar sorteo** todo avanza solo, con tus duraciones:
@@ -102,14 +102,14 @@ Es el Celestial **exclusivo** de las rondas de recuperación; no es una prueba o
 - Si se agotan los candidatos, los premios restantes quedan **definitivamente sin adjudicar** y el evento termina como incompleto.
 
 ### Estados e historial
-Cada premio tiene estado: *pendiente*, *en curso*, *adjudicado*, *en recuperación* (ronda desierta), *recuperado por Xuen* o *sin adjudicar*. La pantalla muestra premios entregados / recuperados / pendientes, y distingue **eventos de ausencia** de **personas únicas ausentes**. El historial (en pantalla y en `data/historial.jsonl`) lleva premio, Celestial y si fue ronda principal o recuperación.
+Cada premio tiene estado: *pendiente*, *en curso*, *adjudicado*, *en recuperación* (ronda desierta), *recuperado por Xuen* o *sin adjudicar*. La pantalla muestra premios entregados / recuperados / pendientes, y distingue **eventos de ausencia** de **personas únicas ausentes**. El historial (en pantalla y en `data/streamers/<id-de-twitch>/historial.jsonl`) lleva premio, Celestial y si fue ronda principal o recuperación.
 
 **OBS:** añade una *Fuente de navegador* con `http://localhost:3000/?view=presentation` (sin controles; los botones solo aparecen al pasar el ratón por la parte inferior). También puedes usar la tecla `P` en el panel normal.
 
 ## Idiomas (i18n)
 La interfaz está disponible en **inglés (por defecto)** y **español**, con el mismo criterio que DocFlow: el inglés es el idioma por defecto **independientemente del idioma del navegador**.
 - **Selector EN | ES** en la esquina superior derecha. La elección se recuerda en el navegador (`localStorage`: `celestiales.locale`) y también se puede forzar con `?lang=es` (útil en la fuente de navegador de OBS: `http://localhost:3000/?view=presentation&lang=es`).
-- El cambio es inmediato y lo traduce **todo**, incluido el historial ya generado: el motor guarda *claves y parámetros* y la página los traduce al idioma activo. `data/historial.jsonl` guarda además el texto en inglés.
+- El cambio es inmediato y lo traduce **todo**, incluido el historial ya generado: el motor guarda *claves y parámetros* y la página los traduce al idioma activo. `historial.jsonl` guarda además el texto en inglés.
 - Las páginas de error del servidor (OAuth) usan el idioma elegido (cookie `celestiales_lang`). La consola del servidor está en inglés; con `LANG_UI=es` sale en español.
 - Los nombres de los participantes y los motivos que escribas **nunca se traducen**.
 - **Textos:** `locales/en.js` y `locales/es.js` (incluidos los textos narrativos de los Celestiales, `story.*`). **Añadir un idioma:** copia `locales/en.js` a `locales/xx.js`, tradúcelo, regístralo en `i18n.js` (`SUPPORTED` y los `require`/globales de arriba), en `server.js` (lista de archivos compartidos) y como `<script>` en `public/index.html`/`index.html`. Si falta una clave se usa la inglesa. Las pruebas comprueban que ambos catálogos tengan las mismas claves y parámetros y que toda clave usada exista.
@@ -153,5 +153,6 @@ server.js        servidor HTTP local, OAuth, SSE y órdenes
 twitch.js        OAuth + EventSub WebSocket (reconexión, dedupe, refresco de tokens)
 public/index.html  interfaz (solo muestra el estado y envía órdenes)
 tests/           pruebas automáticas
-data/            tokens.json, config.json e historial.jsonl (generados, fuera de control de versiones)
+store.js         datos por streamer: data/streamers/<id-de-twitch>/ (config + historial)
+data/            tokens.json y streamers/ (generados, fuera de control de versiones)
 ```

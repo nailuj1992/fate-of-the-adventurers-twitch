@@ -315,3 +315,41 @@ test('secureIndex es uniforme (sin sesgo apreciable)', () => {
   const exp = N / k, chi = counts.reduce((s, c) => s + (c - exp) ** 2 / exp, 0);
   assert.ok(chi < 20.5, `chi² = ${chi.toFixed(1)} (gl=5, p>0.001)`);
 });
+
+// ---- datos por streamer ----
+const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+const { StreamerStore } = require('../store');
+function withStore() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'game-')), store = new StreamerStore(root), tw = new FakeTwitch();
+  const g = new Game({ twitch: tw, store, unsafeConfig: true });
+  const login = (id, login) => tw.emit('identity', id ? { id, login } : null);
+  return { g, tw, store, login };
+}
+
+test('cada streamer tiene su propia configuración y al cambiar de cuenta se carga la suya', () => {
+  const { g, store, login } = withStore();
+  login('111', 'ana'); assert.equal(g.saveConfig({ ...FAST, prizes: 2 }).ok, true);
+  login('222', 'bob'); assert.equal(g.config.prizes, Core.DEFAULT_CONFIG.prizes, 'bob no hereda la de ana');
+  assert.equal(g.saveConfig({ ...FAST, prizes: 4 }).ok, true);
+  login('111', 'ana'); assert.equal(g.config.prizes, 2);
+  assert.equal(store.loadConfig('222').prizes, 4);
+});
+
+test('con un evento en marcha, un cambio de identidad no toca la configuración ni el dueño', async () => {
+  const { g, tw, login } = withStore();
+  login('111', 'ana'); g.saveConfig({ ...FAST, prizes: 2 });
+  assert.equal((await g.start(NAMES.slice(0, 5))).ok, true);
+  login('222', 'bob');
+  assert.equal(g.owner, '111'); assert.equal(g.config.prizes, 2);
+  g.cancel(); tw.removeAllListeners();
+});
+
+test('el historial se escribe en la carpeta del streamer dueño del evento', async () => {
+  const { g, store, login } = withStore();
+  login('111', 'ana'); g.saveConfig({ ...FAST, prizes: 1 });
+  assert.equal((await g.start(NAMES.slice(0, 3))).ok, true);
+  await until(() => g.status === 'confirming' && g.cur && !g.cur.settled && !g.cur.grace);
+  g.cancel();
+  assert.ok(fs.existsSync(store.historyFile('111')));
+  assert.ok(!fs.existsSync(store.historyFile('222')));
+});

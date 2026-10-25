@@ -29,11 +29,11 @@ function make(overrides = {}) {
   const calls = [];
   const tokenFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'tw-')), 'tokens.json');
   fs.writeFileSync(tokenFile, JSON.stringify({ accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 3600e3 }));
-  const state = { scopes: ['user:read:chat'], subStatus: 202 };
+  const state = { scopes: ['user:read:chat'], subStatus: 202, userId: '100' };
   const fetchImpl = async (url, opts = {}) => {
     calls.push({ url: String(url), opts });
     const u = String(url), json = (code, body) => ({ ok: code < 300, status: code, json: async () => body });
-    if (u.endsWith('/oauth2/validate')) return json(200, { client_id: 'cid', login: 'streamer', user_id: '100', scopes: state.scopes, expires_in: 3000 });
+    if (u.endsWith('/oauth2/validate')) return json(200, { client_id: 'cid', login: 'streamer', user_id: state.userId || '100', scopes: state.scopes, expires_in: 3000 });
     if (u.endsWith('/oauth2/token')) return json(200, { access_token: 'AT2', refresh_token: 'RT2', expires_in: 3600 });
     if (u.includes('/helix/users')) return json(200, { data: [{ id: '7', login: 'ana', display_name: 'Ana' }] });
     if (u.endsWith('/eventsub/subscriptions')) return json(state.subStatus, { message: 'x' });
@@ -147,4 +147,21 @@ test('resolveLogins consulta Helix con varios login y devuelve ID y nombre visib
   assert.equal(m.get('ana').id, '7'); assert.equal(m.get('ana').displayName, 'Ana'); assert.equal(m.has('zzz'), false);
   assert.match(calls.at(-1).url, /login=ana&login=zzz/);
   tw.logout();
+});
+
+test('cuenta: otra cuenta no puede iniciar sesión con un evento en marcha; sin evento sí y se avisa con "identity"', async () => {
+  let busy = true;
+  const { tw, state, tokenFile } = make({ canChangeAccount: () => !busy });
+  const seen = []; tw.on('identity', u => seen.push(u && u.id));
+  tw.setUser({ id: '100', login: 'streamer' });
+  const login = async () => { const u = new URL(tw.authUrl()); await tw.handleCallback({ code: 'CODE', state: u.searchParams.get('state') }); };
+  state.userId = '200';
+  await assert.rejects(login(), /event is in progress/);
+  assert.equal(tw.user.id, '100', 'la sesión original no se toca');
+  assert.equal(JSON.parse(fs.readFileSync(tokenFile, 'utf8')).accessToken, 'AT', 'los tokens originales siguen guardados');
+  state.userId = '100'; await login();                       // la misma cuenta siempre puede renovar
+  assert.deepEqual(seen, ['100']);
+  busy = false; state.userId = '200'; await login();
+  assert.equal(tw.user.id, '200'); assert.deepEqual(seen, ['100', '200']);
+  tw.logout(); assert.deepEqual(seen, ['100', '200', null]);
 });

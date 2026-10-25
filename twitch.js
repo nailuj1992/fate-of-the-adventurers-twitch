@@ -5,6 +5,7 @@
  *
  * Eventos emitidos:
  *   'status'  (snapshot)  → cambió el estado de conexión
+ *   'identity' ({id, login} | null)  → cambió la cuenta de Twitch conectada (inicio/cierre de sesión, cambio de cuenta)
  *   'message' ({messageId, chatterId, chatterLogin, text, receivedAt})  → mensaje de chat (sin duplicados)
  */
 const EventEmitter = require('node:events');
@@ -20,6 +21,8 @@ const WATCHDOG_MARGIN_MS = 2000;             // margen sobre keepalive_timeout_s
 const SEEN_MAX = 2000;                       // ids de mensaje recordados para idempotencia
 
 class AuthError extends Error { constructor(m){ super(m); this.code = 'AUTH'; } }
+// Otra cuenta intenta iniciar sesión mientras hay un evento en marcha: se rechaza (la configuración y el historial son de UNA cuenta).
+class BusyError extends Error { constructor(m){ super(m); this.code = 'ACCOUNT_BUSY'; } }
 
 class Twitch extends EventEmitter {
   constructor(o) {
@@ -34,6 +37,7 @@ class Twitch extends EventEmitter {
     this.eventsubUrl = o.eventsubUrl || EVENTSUB_URL;
     this.backoffBaseMs = o.backoffBaseMs ?? 1000;
     this.logger = o.log || (() => {});
+    this.canChangeAccount = o.canChangeAccount || (() => true);   // () => boolean: ¿se puede cambiar de cuenta ahora?
     this.wdMargin = o.watchdogMarginMs ?? WATCHDOG_MARGIN_MS;
 
     this.tokens = null;          // {accessToken, refreshToken, expiresAt}
@@ -75,8 +79,14 @@ class Twitch extends EventEmitter {
   static toTokens(j) {
     return { accessToken: j.access_token, refreshToken: j.refresh_token, expiresAt: Date.now() + (j.expires_in || 0) * 1000 };
   }
+  // Único punto que cambia la cuenta conectada: avisa (evento 'identity') solo si realmente cambió.
+  setUser(u) {
+    const before = this.user ? this.user.id : null, after = u ? u.id : null;
+    this.user = u;
+    if (before !== after) this.emit('identity', u);
+  }
   invalidateTokens(reason) {
-    this.tokens = null; this.user = null; this.channelUser = null;
+    this.tokens = null; this.channelUser = null; this.setUser(null);
     try { fs.unlinkSync(this.tokenFile); } catch {}
     this.shutdownSockets(); this.wanted = false;
     this.setStatus('disconnected', { code: reason });
@@ -138,9 +148,20 @@ class Twitch extends EventEmitter {
     if (!exp || exp < Date.now()) throw new Error('Invalid or expired state parameter (possible CSRF)');
     const { res, j } = await this.tokenRequest({ grant_type: 'authorization_code', code: query.code, redirect_uri: this.redirectUri });
     if (!res.ok) throw new Error(`Code exchange: ${j.message || 'HTTP ' + res.status}`);
-    this.tokens = Twitch.toTokens(j); this.saveTokens();
+    const fresh = Twitch.toTokens(j);
+    // Se identifica a la cuenta ANTES de tocar la sesión actual: si es otra y hay un evento en marcha, se rechaza sin cambiar nada.
+    const who = await this.identify(fresh.accessToken);
+    if (this.user && this.user.id !== who.user_id && !this.canChangeAccount())
+      throw new BusyError(`An event is in progress for @${this.user.login}; finish or cancel it before signing in with another account`);
+    this.tokens = fresh; this.saveTokens();
     await this.setup();
     this.connect();
+  }
+  /** Quién es el dueño de un token (endpoint validate), sin efectos secundarios. */
+  async identify(accessToken) {
+    const res = await this.fetch(`${OAUTH}/validate`, { headers: { Authorization: `OAuth ${accessToken}` } });
+    if (!res.ok) throw new Error(`Token validation: HTTP ${res.status}`);
+    return res.json();
   }
   async validate(retried = false) {
     if (!this.tokens) throw new AuthError('Not authenticated');
@@ -156,7 +177,7 @@ class Twitch extends EventEmitter {
       this.invalidateTokens('auth_scope');
       throw new AuthError('Missing the user:read:chat scope');
     }
-    this.user = { id: v.user_id, login: v.login };
+    this.setUser({ id: v.user_id, login: v.login });
     if (!this.channelLogin || this.channelLogin === v.login) this.channelUser = { id: v.user_id, login: v.login };
     else {
       const m = await this.resolveLogins([this.channelLogin]);
@@ -176,7 +197,7 @@ class Twitch extends EventEmitter {
   }
   logout() {
     this.wanted = false; this.shutdownSockets(); clearInterval(this.validateTimer);
-    this.tokens = null; this.user = null; this.channelUser = null;
+    this.tokens = null; this.channelUser = null; this.setUser(null);
     try { fs.unlinkSync(this.tokenFile); } catch {}
     this.setStatus('disconnected', 'logged_out');
   }
@@ -309,4 +330,4 @@ class Twitch extends EventEmitter {
   }
 }
 
-module.exports = { Twitch, AuthError, SCOPES, EVENTSUB_URL };
+module.exports = { Twitch, AuthError, BusyError, SCOPES, EVENTSUB_URL };
