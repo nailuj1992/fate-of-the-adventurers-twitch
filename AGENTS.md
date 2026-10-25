@@ -23,7 +23,7 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 ### Stack
 
 - **Node.js ≥ 22**, **zero npm dependencies** (native `fetch`, `WebSocket`, `node:test`). Do not add a dependency or a build step without asking.
-- Frontend: a single static `public/index.html` (vanilla HTML/CSS/JS, no framework), served by the server.
+- Frontend: a static `public/index.html` plus the shared `ui/*.js` and `css/app.css` (vanilla HTML/CSS/JS, no framework, no build step), served by the server.
 - Twitch: OAuth authorization-code flow (confidential client) + EventSub WebSocket, scope **`user:read:chat`** only.
 
 ## Live deployment
@@ -51,7 +51,8 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 | `twitch.js` | Per-streamer Twitch façade (same class, events and import path): owns the account (`user`, `channelUser`), the connection `status` and the hourly token validation, and wires the two modules below. |
 | `twitch/auth.js` | `TwitchAuth`: tokens on disk, OAuth authorization code (`authUrl`, `exchange`), refresh/validate, Helix calls (`api`, `resolveLogins`, `subscribeChat`). Emits `invalidated` when the refresh token stops working. |
 | `twitch/eventsub.js` | `EventSubSession`: EventSub WebSocket lifecycle — welcome, `session_reconnect` migration, keepalive watchdog, exponential backoff, `message_id` dedupe. Knows nothing about tokens or accounts. |
-| `public/index.html` | The whole UI. Only renders the state it receives and sends commands. Contains an **adapter** section (`MODE = 'twitch'`) that differs from the manual repo. |
+| `public/index.html` | The page markup and the script tags. Contains the inline **adapter** script (`MODE = 'twitch'`) that differs from the manual repo. |
+| `ui/*.js` | **Shared** UI scripts (the UI only renders the state it receives and sends commands), loaded in this order: `util.js` (helpers, emblems), `state.js` (state mirror, i18n glue, UI clock), `admin.js` (participants, settings panel, start), `stage.js` (render, final screen, modal, buttons), `fx.js` (particles), then the inline adapter, then `main.js` (init + `boot()`). Classic scripts sharing the global scope (no ES modules: the manual version must work from `file://`), so top-level code may only reference symbols from the same file or earlier ones. Served from the closed list in `server/pages.js`. |
 | `public/img/` | Celestial images (`niuzao.png`, `yulon.webp`, `chiji.png`, `xuen.webp`). Third-party artwork (not owned by the maintainer): do not add more of it or redistribute it elsewhere; the maintainer decides if it must be replaced. |
 | `tests/` | `core.test.js` (engine with a simulated clock), `game.test.js` (wrapper, real timers), `twitch.test.js` (OAuth/EventSub with fake WebSocket/fetch), `i18n.test.js` (parity and key coverage). |
 | `iniciar.bat` | Windows launcher (creates `.env` from `.env.example`, starts the server, opens the browser). |
@@ -77,14 +78,14 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 - **i18n.** Every user-facing string goes through `I18n.t(...)` (UI) or through a **key + params** (engine/server). Never hard-code UI text. **English is the default**, independent of the browser language. Every key must exist in **both** `en.js` and `es.js` with the same `{params}` (the tests enforce this and that every used key exists). Spanish text uses correct orthography (accents, `ñ`). User-entered data (names, reasons) is never translated.
 - **Engine messages are keys:** `this.log(kind, key, params)` stores `key` + `params` (+ English `text` for the history file); errors are `err('code', params)` → `errorKey: 'err.code'`. The UI translates them, so a language switch re-translates old history.
 - **Settings** live in one place: `DEFAULT_CONFIG` / `LIMITS` in `core.js`. No hard-coded durations elsewhere.
-- **Shared files** (`core.js`, `i18n.js`, `locales/*`, `css/app.css`) must stay **byte-identical** with the sibling repo. `tests/shared.test.js` checks it when both repos are cloned side by side (`../fate-of-the-adventurers-manual`); the CI `parity` job does it against the manual repo's `master`.
-- **UI parity.** `public/index.html` here and `index.html` in the manual repo are the same UI with a different adapter block (`/* ---- Adaptador … ---- */`: `MODE`, `api()`, `boot()`). There is no generator in the repo: apply any UI change to **both** files.
+- **Shared files** (`core.js`, `i18n.js`, `locales/*`, `css/app.css`, `ui/*.js`) must stay **byte-identical** with the sibling repo. `tests/shared.test.js` checks it when both repos are cloned side by side (`../fate-of-the-adventurers-manual`); the CI `parity` job does it against the manual repo's `master`.
+- **UI parity.** `public/index.html` here and `index.html` in the manual repo differ only in the inline adapter script (`/* ---- Adaptador … ---- */`: `MODE`, `api()`, `boot()`); everything else is shared (`ui/*.js`, `css/app.css`) and `tests/shared.test.js` checks it. There is no generator in the repo: apply any UI change to **both** repos.
 - Style: 2-space indentation, `'use strict'`, match the surrounding code. `iniciar.bat` keeps CRLF line endings. Keep comments in Spanish.
 - Celestial names: **Niuzao, Yu'lon, Chi-ji (lowercase *j*, as on Wowhead), Xuen**; long names live in `celestial.*.long`.
 
 ## Common tasks
 
-- **Add a setting:** add it to `DEFAULT_CONFIG` + `LIMITS` (`core.js`), `toMs` if it is a duration, labels/help in both catalogs (`cfg.label.<k>`, `cfg.help.<k>`), the field list in `public/index.html` (`CFG_MAIN`/`CFG_ADV`), README tables (EN and ES) and tests. Sync `core.js`/locales to the sibling repo.
+- **Add a setting:** add it to `DEFAULT_CONFIG` + `LIMITS` (`core.js`), `toMs` if it is a duration, labels/help in both catalogs (`cfg.label.<k>`, `cfg.help.<k>`), the field list in `ui/admin.js` (`CFG_MAIN`/`CFG_ADV`), README tables (EN and ES) and tests. Sync `core.js`/locales to the sibling repo.
 - **Change or add a message:** edit the key in **both** catalogs; if it is a new engine log, add the `this.log(..., 'new_key', params)` call and the `log.new_key` entry.
 - **Add a language:** copy `locales/en.js`, translate, register it in `i18n.js` (`SUPPORTED`, loaders), in `server/pages.js` (`SHARED` list) and as a `<script>` in `public/index.html`; extend the switcher; tests then enforce parity.
 - **Change phase behaviour/timing semantics:** edit `core.js` only, update `core.test.js` (simulated clock) first, then `game.test.js`.

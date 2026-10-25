@@ -8,7 +8,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
-const SHARED_FILES = ['core.js', 'i18n.js', 'locales/en.js', 'locales/es.js', 'css/app.css'];
+const SHARED_FILES = ['core.js', 'i18n.js', 'locales/en.js', 'locales/es.js', 'css/app.css',
+  ...['util', 'state', 'admin', 'stage', 'fx', 'main'].map(n => `ui/${n}.js`)];
 const SIBLING_NAMES = ['fate-of-the-adventurers-manual', 'Idea 2 - Manual'];
 const sibling = SIBLING_NAMES.map(n => path.join(ROOT, '..', n)).find(p => fs.existsSync(p));
 const read = (...p) => fs.readFileSync(path.join(...p), 'utf8');
@@ -16,10 +17,10 @@ const read = (...p) => fs.readFileSync(path.join(...p), 'utf8');
 const MISSING = 'repositorio manual no encontrado junto a este';
 const REQUIRED = process.env.REQUIRE_SIBLING === '1';
 
-// El bloque del adaptador va desde su marca hasta la sección de i18n; todo lo demás debe coincidir.
+// El bloque del adaptador (script en línea) va desde su marca hasta el cierre de su <script>; todo lo demás debe coincidir.
 function withoutAdapter(html) {
-  const a = html.indexOf('/* ---- Adaptador'), b = html.indexOf('/* ---------- i18n');
-  assert.ok(a > 0 && b > a, 'marcas del bloque Adaptador e i18n presentes');
+  const a = html.indexOf('/* ---- Adaptador'), b = html.indexOf('</script>', a);
+  assert.ok(a > 0 && b > a, 'bloque Adaptador presente');
   return html.slice(0, a) + html.slice(b);
 }
 

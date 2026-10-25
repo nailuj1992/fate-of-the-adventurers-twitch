@@ -35,9 +35,11 @@ function panel(res) {
 // Archivos compartidos con la página (reglas/configuración, i18n con sus catálogos y la hoja de estilos), idénticos en el repo manual.
 // Lista cerrada: nada más se sirve desde aquí.
 const JS = 'application/javascript; charset=utf-8', CSS = 'text/css; charset=utf-8';
+const UI_SCRIPTS = ['util', 'state', 'admin', 'stage', 'fx', 'main'];   // ui/<nombre>.js, en el orden en que los carga la página
 const SHARED = {
   '/core.js': ['core.js', JS], '/i18n.js': ['i18n.js', JS], '/locales/en.js': ['locales/en.js', JS], '/locales/es.js': ['locales/es.js', JS],
   '/css/app.css': ['css/app.css', CSS],
+  ...Object.fromEntries(UI_SCRIPTS.map(n => [`/ui/${n}.js`, [`ui/${n}.js`, JS]])),
 };
 // Imágenes: solo public/img/<nombre>.(png|webp|jpg|jpeg), sin subcarpetas ni rutas relativas.
 const IMG_RE = /^\/img\/([\w-]+\.(png|webp|jpe?g))$/i;
