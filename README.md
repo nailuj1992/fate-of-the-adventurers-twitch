@@ -12,6 +12,8 @@ You can use the hosted version above or run everything on your PC: a Node.js ser
 - **Node.js 22 or later** (uses native `fetch` and `WebSocket`). Check with `node --version`.
 - A Twitch account with access to https://dev.twitch.tv/console (Twitch may ask you to enable two-factor authentication to register apps).
 
+> 📷 **About the screenshots.** Those in sections 3–5 are taken from the real interface connected to a **simulated Twitch** (fictional account `streamer_demo` and fictional chat), with short timings so a whole event fits in a few minutes. Steps 1 and 2 have no screenshots on purpose: the Twitch console and your `.env` show your account and secrets.
+
 ## 1. Register the application on Twitch (manual step, one time)
 1. Go to https://dev.twitch.tv/console/apps → **Register Your Application**.
 2. **Name**: anything you like (must be unique on Twitch).
@@ -44,8 +46,26 @@ account that will read the chat (normally yours, the channel owner's). The only 
 Each account's tokens are stored in `data/streamers/<twitch-id>/tokens.json` (plain text, only on your PC; older versions used `data/tokens.json`, which is no longer read: connect once again); you will not need to re-authorize on every start.
 "Sign out of Twitch" deletes them.
 
+![Not connected: Connect with Twitch button](docs/img/en/01-connect.webp)
+
+After authorizing, the panel shows the connection status and the channel being read:
+
+![Connected to the channel](docs/img/en/02-connected.webp)
+
+
 ## 4. Set up a draw (number of prizes and timings)
-In the admin panel, **Settings** tab:
+
+Paste the participants (their **Twitch logins**, one per line). The panel counts valid, duplicate and empty lines, checks that there are enough for the prizes and tells you when everything is ready; at start, the server checks that every login exists on Twitch.
+
+![Participants pasted and validated](docs/img/en/03-participants.webp)
+
+Then, in the **Settings** tab:
+
+![Settings tab](docs/img/en/04-settings.webp)
+
+The **Advanced** section holds the delivery margin and the extra time after a connection drop:
+
+![Advanced settings](docs/img/en/05-settings-advanced.webp)
 
 1. **Number of winners**: 1 to 50 (default 3). It cannot exceed the number of valid participants; each prize goes to a different person.
 2. **Timings** (all in whole seconds; validated as you type and again on the server):
@@ -67,6 +87,8 @@ In the admin panel, **Settings** tab:
 4. **Restore defaults** (not saved yet), **Save settings** and **Start draw**. Starting uses and saves what you see in the panel.
 5. Each option has a **"?" icon** with an explanation (hover it or focus it with the keyboard).
 
+![Start confirmation](docs/img/en/06-start-confirm.webp)
+
 **Example: an 8-prize draw with 60 s to confirm** → paste at least 8 names in *Participants*, in *Settings* enter `8` for "Number of winners" and `60` for "Time to confirm presence", check the preview, press **Start draw** and confirm.
 
 The settings are stored **on the server** (`data/streamers/<twitch-id>/config.json`, no credentials) and persist between sessions. **Each Twitch account has its own folder** (keyed by its numeric user ID, which never changes): settings and history are never shared or overwritten between streamers, and signing in with another account loads that account's own settings. Each signed-in account runs its own event independently. **They are locked once the event starts**: the server rejects any change until it ends or is cancelled/restarted with confirmation. Defaults and limits live in a single place: `core.js → DEFAULT_CONFIG / LIMITS`.
@@ -82,6 +104,48 @@ Celestial introduction → countdown → selection → reveal → wait for confi
 - **Any message from the chosen person in chat** confirms their presence (no command needed).
 - **Last candidate:** if, after the others did not answer, only **one** eligible person is left for that prize, there is nothing left to draw: the countdown and the roll are skipped and that person is revealed right away as the candidate (they still have to confirm their presence in time).
 - **Presenter controls:** *Confirm presence* (manual fallback), *Pause* (freezes the current phase, including the confirmation time; "EVENT PAUSED" is shown), *Skip wait* (introduction, winner, absent, transition), *Disqualify from the draw*, *Cancel draw*, *Restart draw*.
+
+### Step by step during an event
+
+**Celestial introduction, countdown, selection and reveal.** Each round introduces its Celestial, counts down, runs the selection animation and reveals the chosen person.
+
+![Celestial introduction](docs/img/en/07-intro.webp)
+
+![Countdown](docs/img/en/08-countdown.webp)
+
+![Selection animation](docs/img/en/09-roll.webp)
+
+![Reveal of the chosen person](docs/img/en/10-reveal.webp)
+
+**Waiting for the chat.** From the reveal on, the server listens to the chat: the first message from the chosen person (matched by their Twitch ID) confirms them. You can also **pause**, **disqualify** (with a confirmation and a written reason) or **confirm manually**.
+
+![Waiting for the chat message](docs/img/en/11-confirming.webp)
+
+![Paused timer](docs/img/en/13-paused.webp)
+
+![Disqualification dialog](docs/img/en/12-disqualify.webp)
+
+**Winner and transition.** A confirmed winner is shown, then the next round starts with the next Celestial.
+
+![Winner confirmed by chat](docs/img/en/14-winner.webp)
+
+![Transition to the next round](docs/img/en/15-transition.webp)
+
+**Connection drop.** If the Twitch connection is not reliable when the time runs out, **nobody is declared absent**: the state becomes *Verifying*, and once the connection is back the chosen person gets extra time.
+
+![Twitch connection lost: nobody is declared absent](docs/img/en/16-connection-lost.webp)
+
+![Connection recovered: extra time](docs/img/en/17-grace.webp)
+
+**Absence.** If the time runs out with a reliable connection, the person is shown as absent (excluded from that round only) and another candidate is drawn.
+
+![Absent participant](docs/img/en/18-absent.webp)
+
+**Final screen and history.** When every prize is assigned (or recovered by Xuen), the winners are shown with their Celestial; the presenter hands the codes over personally.
+
+![Final screen](docs/img/en/19-final.webp)
+
+![Event history](docs/img/en/20-history.webp)
 
 ### Rotation of the Celestials
 The main rounds rotate **circularly** between Niuzao, Yu'lon and Chi-ji until all prizes are complete. The Celestial depends on the **round index**, not on the winners. An **absence does not change the Celestial**: another participant is chosen under the same one. The rotation only advances when a winner is confirmed or the round ends deserted.

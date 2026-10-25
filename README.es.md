@@ -12,6 +12,8 @@ Puedes usar la versión en línea de arriba o ejecutar todo en tu PC: un servido
 - **Node.js 22 o superior** (usa `fetch` y `WebSocket` nativos). Comprueba con `node --version`.
 - Una cuenta de Twitch con acceso a https://dev.twitch.tv/console (Twitch puede pedir activar la verificación en dos pasos para registrar apps).
 
+> 📷 **Sobre los pantallazos.** Los de las secciones 3–5 son de la interfaz real conectada a un **Twitch simulado** (cuenta ficticia `streamer_demo` y chat ficticio), con tiempos cortos para que un evento completo quepa en pocos minutos. Los pasos 1 y 2 no llevan pantallazos a propósito: la consola de Twitch y tu `.env` muestran tu cuenta y tus secretos.
+
 ## 1. Registrar la aplicación en Twitch (paso manual, una sola vez)
 1. Entra en https://dev.twitch.tv/console/apps → **Register Your Application**.
 2. **Name**: el que quieras (único en Twitch).
@@ -44,8 +46,26 @@ cuenta que leerá el chat (normalmente la tuya, la del canal). El único permiso
 Los tokens de cada cuenta se guardan en `data/streamers/<id-de-twitch>/tokens.json` (texto plano, solo en tu PC; las versiones anteriores usaban `data/tokens.json`, que ya no se lee: conéctate una vez más); no tendrás que volver a autorizar en
 cada arranque. «Cerrar sesión de Twitch» los borra.
 
+![Sin conexión: botón Conectar con Twitch](docs/img/es/01-connect.webp)
+
+Tras autorizar, el panel muestra el estado de la conexión y el canal que se lee:
+
+![Conectado al canal](docs/img/es/02-connected.webp)
+
+
 ## 4. Configurar un sorteo (cantidad de premios y tiempos)
-En el panel de administración, pestaña **Configuración**:
+
+Pega los participantes (sus **logins de Twitch**, uno por línea). El panel cuenta las líneas válidas, duplicadas y vacías, comprueba que alcancen para los premios y avisa cuando todo está listo; al iniciar, el servidor verifica que cada login exista en Twitch.
+
+![Participantes pegados y validados](docs/img/es/03-participants.webp)
+
+Después, en la pestaña **Configuración**:
+
+![Pestaña Configuración](docs/img/es/04-settings.webp)
+
+La sección **Avanzado** contiene el margen de entrega y el tiempo extra tras una caída de conexión:
+
+![Configuración avanzada](docs/img/es/05-settings-advanced.webp)
 
 1. **Cantidad de ganadores**: de 1 a 50 (por defecto 3). No puede superar el número de participantes válidos; cada premio es para una persona distinta.
 2. **Tiempos** (todos en segundos, enteros; se validan al escribir y otra vez en el servidor):
@@ -66,6 +86,8 @@ En el panel de administración, pestaña **Configuración**:
 3. La **vista previa** muestra el orden de los Celestiales para esa cantidad de premios (con 8: Niuzao, Yu'lon, Chi-ji, Niuzao, Yu'lon, Chi-ji, Niuzao, Yu'lon).
 4. **Restaurar predeterminados** (sin guardar aún), **Guardar configuración** y **Iniciar sorteo**. Iniciar usa y guarda lo que ves en el panel.
 
+![Confirmación de inicio](docs/img/es/06-start-confirm.webp)
+
 **Ejemplo: sorteo de 8 premios con 60 s de confirmación** → pega al menos 8 nombres en *Participantes*, en *Configuración* pon `8` en «Cantidad de ganadores» y `60` en «Tiempo para confirmar presencia», comprueba la vista previa, pulsa **Iniciar sorteo** y confirma.
 
 La configuración se guarda **en el servidor** (`data/streamers/<id-de-twitch>/config.json`, sin credenciales) y persiste entre sesiones. **Cada cuenta de Twitch tiene su propia carpeta** (identificada por su ID numérico, que no cambia): la configuración y el historial nunca se comparten ni se pisan entre streamers, e iniciar sesión con otra cuenta carga la configuración de esa cuenta. Cada cuenta con sesión iniciada maneja su propio evento de forma independiente. **Queda bloqueada al iniciar el evento**: el servidor rechaza cualquier cambio hasta que termine o se cancele/reinicie con confirmación. Los valores por defecto y los límites viven en un solo sitio: `core.js → DEFAULT_CONFIG / LIMITS`.
@@ -81,6 +103,48 @@ Introducción del Celestial → cuenta atrás → selección → revelación →
 - **Cualquier mensaje del elegido en el chat** confirma su presencia (sin comando).
 - **Último candidato:** si, tras no responder los demás, queda **una sola** persona elegible para ese premio, ya no hay nada que sortear: se salta la cuenta atrás y el roll y esa persona se revela de inmediato como candidata (aun así debe confirmar su presencia a tiempo).
 - **Controles del presentador:** *Confirmar presencia* (respaldo manual), *Pausar* (congela la fase en curso, también el plazo de confirmación; se muestra «EVENTO EN PAUSA»), *Saltar espera* (introducción, ganador, ausente, transición), *Descalificar del sorteo*, *Cancelar sorteo*, *Reiniciar sorteo*.
+
+### Paso a paso durante un evento
+
+**Presentación del Celestial, cuenta atrás, selección y revelación.** Cada ronda presenta a su Celestial, cuenta hacia atrás, ejecuta la animación de selección y revela a la persona elegida.
+
+![Presentación del Celestial](docs/img/es/07-intro.webp)
+
+![Cuenta atrás](docs/img/es/08-countdown.webp)
+
+![Animación de selección](docs/img/es/09-roll.webp)
+
+![Revelación de la persona elegida](docs/img/es/10-reveal.webp)
+
+**Esperando al chat.** Desde la revelación el servidor escucha el chat: el primer mensaje de la persona elegida (identificada por su ID de Twitch) la confirma. También puedes **pausar**, **descalificar** (con confirmación y motivo escrito) o **confirmar manualmente**.
+
+![Esperando el mensaje del chat](docs/img/es/11-confirming.webp)
+
+![Temporizador en pausa](docs/img/es/13-paused.webp)
+
+![Diálogo de descalificación](docs/img/es/12-disqualify.webp)
+
+**Ganador y transición.** Se muestra al ganador confirmado y empieza la siguiente ronda con el siguiente Celestial.
+
+![Ganador confirmado por el chat](docs/img/es/14-winner.webp)
+
+![Transición a la siguiente ronda](docs/img/es/15-transition.webp)
+
+**Caída de conexión.** Si la conexión con Twitch no es fiable al agotarse el tiempo, **nadie se declara ausente**: el estado pasa a *Verificando* y, al volver la conexión, la persona elegida recibe tiempo extra.
+
+![Conexión con Twitch perdida: nadie se declara ausente](docs/img/es/16-connection-lost.webp)
+
+![Conexión recuperada: tiempo extra](docs/img/es/17-grace.webp)
+
+**Ausencia.** Si el tiempo se agota con conexión fiable, la persona se muestra como ausente (excluida solo de esa ronda) y se sortea otro candidato.
+
+![Participante ausente](docs/img/es/18-absent.webp)
+
+**Pantalla final e historial.** Cuando todos los premios están asignados (o recuperados por Xuen), se muestran los ganadores con su Celestial; el presentador entrega los códigos en persona.
+
+![Pantalla final](docs/img/es/19-final.webp)
+
+![Historial del evento](docs/img/es/20-history.webp)
 
 ### Rotación de Celestiales
 Las rondas principales rotan **circularmente** entre Niuzao, Yu'lon y Chi-ji hasta completar los premios. El Celestial depende del **índice de la ronda**, no de los ganadores. Una **ausencia no cambia el Celestial**: se elige a otro participante bajo el mismo. La rotación solo avanza cuando se confirma un ganador o la ronda queda desierta.
