@@ -55,7 +55,7 @@ Tras autorizar, el panel muestra el estado de la conexión y el canal que se lee
 
 ## 4. Configurar un sorteo (cantidad de premios y tiempos)
 
-Pega los participantes (sus **logins de Twitch**, uno por línea). El panel cuenta las líneas válidas, duplicadas y vacías, comprueba que alcancen para los premios y avisa cuando todo está listo; al iniciar, el servidor verifica que cada login exista en Twitch.
+Pega los participantes (sus **logins de Twitch**, uno por línea). El panel cuenta las líneas válidas, duplicadas y vacías, comprueba que alcancen para los premios y avisa cuando todo está listo; al iniciar, el servidor verifica que cada login exista en Twitch. El botón **Barajar nombres** reordena la lista al azar (al iniciar, el sorteo la vuelve a barajar).
 
 ![Participantes pegados y validados](docs/img/es/03-participants.webp)
 

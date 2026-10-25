@@ -24,6 +24,8 @@
         placeholder: 'Pega aquí los nombres, uno por línea…',
         clean: 'Limpiar espacios y vacías',
         dedupe: 'Quitar duplicados',
+        shuffle: 'Barajar nombres',
+        shuffleHint: 'Reordena la lista al azar (al iniciar, el sorteo la vuelve a barajar)',
         twitchNote: 'Los nombres de la lista deben ser usuarios de Twitch.',
       },
       validation: { heading: 'Validación', valid: 'Válidos', dup: 'Duplicados', empty: 'Vacías' },
