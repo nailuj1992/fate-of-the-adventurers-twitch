@@ -1,7 +1,8 @@
 'use strict';
 /**
- * Integración con Twitch: OAuth (authorization code) + EventSub por WebSocket.
- * Solo lectura del chat (scope user:read:chat). Los tokens viven únicamente en el servidor.
+ * Integración con Twitch de UN streamer: junta el cliente autenticado (twitch/auth.js: tokens, OAuth, Helix) y la sesión EventSub
+ * (twitch/eventsub.js: WebSocket, reconexión) y mantiene lo que es de la cuenta: quién es el usuario, qué canal se lee y el estado
+ * de conexión que ve el resto de la aplicación. Solo lectura del chat (scope user:read:chat); los tokens viven únicamente en el servidor.
  *
  * Eventos emitidos:
  *   'status'  (snapshot)  → cambió el estado de conexión
@@ -9,54 +10,35 @@
  *   'message' ({messageId, chatterId, chatterLogin, text, receivedAt})  → mensaje de chat (sin duplicados)
  */
 const EventEmitter = require('node:events');
-const crypto = require('node:crypto');
-const fs = require('node:fs');
-const path = require('node:path');
+const { TwitchAuth, AuthError, SCOPES } = require('./twitch/auth');
+const { EventSubSession, EVENTSUB_URL } = require('./twitch/eventsub');
 
-const EVENTSUB_URL = 'wss://eventsub.wss.twitch.tv/ws';
-const OAUTH = 'https://id.twitch.tv/oauth2';
-const HELIX = 'https://api.twitch.tv/helix';
-const SCOPES = ['user:read:chat'];           // único permiso solicitado
-const WATCHDOG_MARGIN_MS = 2000;             // margen sobre keepalive_timeout_seconds
-const SEEN_MAX = 2000;                       // ids de mensaje recordados para idempotencia
-
-class AuthError extends Error { constructor(m){ super(m); this.code = 'AUTH'; } }
-// Otra cuenta intenta iniciar sesión mientras hay un evento en marcha: se rechaza (la configuración y el historial son de UNA cuenta).
-class BusyError extends Error { constructor(m){ super(m); this.code = 'ACCOUNT_BUSY'; } }
+const VALIDATE_EVERY_MS = 3600000;           // Twitch exige validar el token cada hora
 
 class Twitch extends EventEmitter {
   constructor(o) {
     super();
-    this.clientId = o.clientId || '';
-    this.clientSecret = o.clientSecret || '';
-    this.redirectUri = o.redirectUri;
     this.channelLogin = (o.channel || '').toLowerCase();
-    this.tokenFile = o.tokenFile;
-    this.fetch = o.fetchImpl || fetch;
-    this.WS = o.WebSocketImpl || WebSocket;
-    this.eventsubUrl = o.eventsubUrl || EVENTSUB_URL;
-    this.backoffBaseMs = o.backoffBaseMs ?? 1000;
     this.logger = o.log || (() => {});
-    this.allowLogin = o.allowLogin || (() => true);                 // (login) => boolean: ¿esta cuenta puede usar el panel? (modo remoto)
-    this.canChangeAccount = o.canChangeAccount || (() => true);   // () => boolean: ¿se puede cambiar de cuenta ahora?
-    this.wdMargin = o.watchdogMarginMs ?? WATCHDOG_MARGIN_MS;
-
-    this.tokens = null;          // {accessToken, refreshToken, expiresAt}
+    this.auth = new TwitchAuth(o);
+    this.session = new EventSubSession({
+      WS: o.WebSocketImpl, url: o.eventsubUrl, backoffBaseMs: o.backoffBaseMs, watchdogMarginMs: o.watchdogMarginMs, timers: o.timers,
+      subscribe: sessionId => this.auth.subscribeChat(this.channelUser.id, this.user.id, sessionId),
+      ensureToken: () => this.auth.ensureToken(),
+    });
     this.user = null;            // {id, login}  (cuenta autorizada)
     this.channelUser = null;     // {id, login}  (canal cuyo chat se lee)
     this.status = 'disconnected';
-    this.reason = null;            // {code, detail?} (la interfaz lo traduce: twitch.reason.<code>)
-    this.wanted = false;
-    this.active = null;          // socket con sesión activa
-    this.pending = null;         // socket de migración (session_reconnect)
-    this.retryTimer = null; this.retryN = 0;
-    this.refreshing = null;
-    this.oauthStates = new Map();
-    this.seen = new Set(); this.seenQueue = [];
+    this.reason = null;          // {code, detail?} (la interfaz lo traduce: twitch.reason.<code>)
     this.validateTimer = null;
+
+    this.session.on('status', (status, reason) => this.setStatus(status, reason));
+    this.session.on('message', m => this.emit('message', m));
+    this.auth.on('invalidated', reason => this.dropSession(reason));   // el refresh token dejó de valer
   }
 
-  get configured() { return !!(this.clientId && this.clientSecret); }
+  get configured() { return this.auth.configured; }
+  get tokens() { return this.auth.tokens; }
   snapshot() {
     return { configured: this.configured, authenticated: !!this.tokens, status: this.status, reason: this.reason,
              user: this.user ? this.user.login : null, channel: this.channelUser ? this.channelUser.login : null };
@@ -68,125 +50,35 @@ class Twitch extends EventEmitter {
     this.logger(`status: ${status}${reason ? ' · ' + reason.code + (reason.detail ? ' (' + reason.detail + ')' : '') : ''}`);
     this.emit('status', this.snapshot());
   }
-
-  /* ---------- tokens ---------- */
-  loadTokens() {
-    try { this.tokens = JSON.parse(fs.readFileSync(this.tokenFile, 'utf8')); } catch { this.tokens = null; }
-  }
-  saveTokens() {
-    fs.mkdirSync(path.dirname(this.tokenFile), { recursive: true });
-    fs.writeFileSync(this.tokenFile, JSON.stringify(this.tokens), { mode: 0o600 });
-  }
-  static toTokens(j) {
-    return { accessToken: j.access_token, refreshToken: j.refresh_token, expiresAt: Date.now() + (j.expires_in || 0) * 1000 };
-  }
   // Único punto que cambia la cuenta conectada: avisa (evento 'identity') solo si realmente cambió.
   setUser(u) {
     const before = this.user ? this.user.id : null, after = u ? u.id : null;
     this.user = u;
     if (before !== after) this.emit('identity', u);
   }
-  invalidateTokens(reason) {
-    this.tokens = null; this.channelUser = null; this.setUser(null);
-    try { fs.unlinkSync(this.tokenFile); } catch {}
-    this.shutdownSockets(); this.wanted = false;
+  /** Olvida la cuenta y corta el chat (los tokens ya se borraron o se borran aparte). */
+  dropSession(reason) {
+    this.channelUser = null; this.setUser(null);
+    this.session.stop();
     this.setStatus('disconnected', { code: reason });
   }
-  async tokenRequest(params) {
-    const res = await this.fetch(`${OAUTH}/token`, {
-      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ client_id: this.clientId, client_secret: this.clientSecret, ...params }),
-    });
-    const j = await res.json().catch(() => ({}));
-    return { res, j };
-  }
-  refresh() {
-    if (this.refreshing) return this.refreshing;
-    this.refreshing = (async () => {
-      if (!this.tokens) throw new AuthError('Not authenticated');
-      const { res, j } = await this.tokenRequest({ grant_type: 'refresh_token', refresh_token: this.tokens.refreshToken });
-      if (!res.ok) {
-        if (res.status === 400 || res.status === 401) {
-          this.invalidateTokens('auth_expired');
-          throw new AuthError(j.message || 'invalid refresh token');
-        }
-        throw new Error(`Token refresh: HTTP ${res.status}`);
-      }
-      this.tokens = Twitch.toTokens(j);   // el refresh token puede rotar: se guarda siempre el nuevo
-      this.saveTokens();
-    })().finally(() => { this.refreshing = null; });
-    return this.refreshing;
-  }
-  async ensureToken() {
-    if (!this.tokens) throw new AuthError('Not authenticated');
-    if (Date.now() >= this.tokens.expiresAt - 120000) await this.refresh();
-  }
-  async api(method, url, body, retried = false) {
-    await this.ensureToken();
-    const res = await this.fetch(url, {
-      method,
-      headers: { Authorization: `Bearer ${this.tokens.accessToken}`, 'Client-Id': this.clientId, 'Content-Type': 'application/json' },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    if (res.status === 401 && !retried) { await this.refresh(); return this.api(method, url, body, true); }
-    return res;
-  }
+  invalidateTokens(reason) { this.auth.clearTokens(); this.dropSession(reason); }
 
-  /* ---------- OAuth (authorization code, secreto solo en el servidor) ---------- */
-  authUrl() {
-    if (!this.configured) throw new Error('TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET are missing');
-    const state = crypto.randomBytes(16).toString('hex');
-    this.oauthStates.set(state, Date.now() + 10 * 60000);
-    const u = new URL(`${OAUTH}/authorize`);
-    u.search = new URLSearchParams({ client_id: this.clientId, redirect_uri: this.redirectUri, response_type: 'code',
-      scope: SCOPES.join(' '), state }).toString();
-    return u.toString();
-  }
-  /**
-   * Primera mitad del callback, sin efectos sobre la sesión: valida el state, canjea el código e identifica la cuenta.
-   * Devuelve { tokens, who } (who = respuesta de /oauth2/validate: user_id, login…).
-   */
-  async exchange(query) {
-    if (query.error) throw new Error(`Twitch denied access: ${query.error_description || query.error}`);
-    const exp = this.oauthStates.get(query.state);
-    this.oauthStates.delete(query.state);
-    if (!exp || exp < Date.now()) throw new Error('Invalid or expired state parameter (possible CSRF)');
-    const { res, j } = await this.tokenRequest({ grant_type: 'authorization_code', code: query.code, redirect_uri: this.redirectUri });
-    if (!res.ok) throw new Error(`Code exchange: ${j.message || 'HTTP ' + res.status}`);
-    const tokens = Twitch.toTokens(j);
-    return { tokens, who: await this.identify(tokens.accessToken) };
-  }
-  /** Segunda mitad: esta instancia pasa a usar esos tokens (se guardan, se valida el scope y se conecta al chat). */
+  /* ---------- OAuth (delegado en twitch/auth.js) ---------- */
+  authUrl() { return this.auth.authUrl(); }
+  exchange(query) { return this.auth.exchange(query); }
+  resolveLogins(logins) { return this.auth.resolveLogins(logins); }
+  /** Esta instancia pasa a usar esos tokens (se guardan, se valida el scope y se conecta al chat). */
   async adopt(tokens) {
-    this.tokens = tokens; this.saveTokens();
+    this.auth.tokens = tokens; this.auth.saveTokens();
     await this.setup();
     this.connect();
   }
-  async handleCallback(query) {
-    // Se identifica a la cuenta ANTES de tocar la sesión actual: si es otra y hay un evento en marcha, se rechaza sin cambiar nada.
-    const { tokens: fresh, who } = await this.exchange(query);
-    if (!this.allowLogin(String(who.login || '').toLowerCase())) throw new AuthError('This Twitch account is not allowed to use the panel');
-    if (this.user && this.user.id !== who.user_id && !this.canChangeAccount())
-      throw new BusyError(`An event is in progress for @${this.user.login}; finish or cancel it before signing in with another account`);
-    await this.adopt(fresh);
-  }
-  /** Quién es el dueño de un token (endpoint validate), sin efectos secundarios. */
-  async identify(accessToken) {
-    const res = await this.fetch(`${OAUTH}/validate`, { headers: { Authorization: `OAuth ${accessToken}` } });
-    if (!res.ok) throw new Error(`Token validation: HTTP ${res.status}`);
-    return res.json();
-  }
-  async validate(retried = false) {
-    if (!this.tokens) throw new AuthError('Not authenticated');
-    const res = await this.fetch(`${OAUTH}/validate`, { headers: { Authorization: `OAuth ${this.tokens.accessToken}` } });
-    if (res.status === 401 && !retried) { await this.refresh(); return this.validate(true); }
-    if (!res.ok) throw new Error(`Token validation: HTTP ${res.status}`);
-    return res.json();
-  }
+
   /** Valida el token, comprueba el scope y resuelve usuario y canal. */
   async setup() {
-    const v = await this.validate();
-    if (!v.scopes || !v.scopes.includes('user:read:chat')) {
+    const v = await this.auth.validate();
+    if (!v.scopes || !v.scopes.includes(SCOPES[0])) {
       this.invalidateTokens('auth_scope');
       throw new AuthError('Missing the user:read:chat scope');
     }
@@ -198,149 +90,22 @@ class Twitch extends EventEmitter {
       if (!c) throw new Error(`The channel "${this.channelLogin}" does not exist on Twitch`);
       this.channelUser = { id: c.id, login: c.login };
     }
-    clearInterval(this.validateTimer);   // Twitch exige validar el token cada hora
-    this.validateTimer = setInterval(() => this.validate().catch(e => this.logger('validate: ' + e.message)), 3600000);
+    clearInterval(this.validateTimer);
+    this.validateTimer = setInterval(() => this.auth.validate().catch(e => this.logger('validate: ' + e.message)), VALIDATE_EVERY_MS);
     this.validateTimer.unref && this.validateTimer.unref();
   }
   async init() {
-    this.loadTokens();
+    this.auth.loadTokens();
     if (!this.tokens) return;
     try { await this.setup(); this.connect(); }
     catch (e) { if (e.code !== 'AUTH') { this.setStatus('disconnected', { code: 'error', detail: e.message }); } }
   }
+  connect() { this.session.connect(); }
   logout() {
-    this.wanted = false; this.shutdownSockets(); clearInterval(this.validateTimer);
-    this.tokens = null; this.channelUser = null; this.setUser(null);
-    try { fs.unlinkSync(this.tokenFile); } catch {}
+    this.session.stop(); clearInterval(this.validateTimer);
+    this.auth.clearTokens(); this.channelUser = null; this.setUser(null);
     this.setStatus('disconnected', 'logged_out');
-  }
-
-  /** logins → Map(login en minúsculas → {id, login, displayName}). Los inexistentes no aparecen. */
-  async resolveLogins(logins) {
-    const out = new Map();
-    for (let i = 0; i < logins.length; i += 100) {
-      const q = new URLSearchParams(); logins.slice(i, i + 100).forEach(l => q.append('login', l));
-      const res = await this.api('GET', `${HELIX}/users?${q}`);
-      if (!res.ok) throw new Error(`Helix /users: HTTP ${res.status}`);
-      for (const u of (await res.json()).data || []) out.set(u.login.toLowerCase(), { id: u.id, login: u.login, displayName: u.display_name });
-    }
-    return out;
-  }
-
-  /* ---------- EventSub WebSocket ---------- */
-  connect() {
-    this.wanted = true; clearTimeout(this.retryTimer);
-    this.setStatus('reconnecting', 'connecting');
-    this.openSocket(this.eventsubUrl, false);
-  }
-  openSocket(url, migrating) {
-    if (!migrating) this.shutdownSockets();
-    const ws = new this.WS(url);
-    const rec = { ws, migrating, sessionId: null, keepalive: 10, wd: null, dead: false };
-    if (migrating) this.pending = rec; else this.active = rec;
-    ws.addEventListener('message', ev => this.onMessage(rec, typeof ev.data === 'string' ? ev.data : String(ev.data)));
-    ws.addEventListener('close', () => this.onClose(rec));
-    ws.addEventListener('error', () => {});   // siempre va seguido de 'close'
-  }
-  shutdownSockets() {
-    for (const k of ['active', 'pending']) {
-      const r = this[k]; this[k] = null;
-      if (r) { r.dead = true; clearTimeout(r.wd); try { r.ws.close(1000); } catch {} }
-    }
-  }
-  armWatchdog(rec) {
-    clearTimeout(rec.wd);
-    rec.wd = setTimeout(() => this.onLost(rec, { code: 'lost_keepalive' }), rec.keepalive * 1000 + this.wdMargin);
-  }
-  dedupe(id) {
-    if (!id) return false;
-    if (this.seen.has(id)) return true;
-    this.seen.add(id); this.seenQueue.push(id);
-    if (this.seenQueue.length > SEEN_MAX) this.seen.delete(this.seenQueue.shift());
-    return false;
-  }
-  onMessage(rec, data) {
-    if (rec.dead) return;
-    let msg; try { msg = JSON.parse(data); } catch { return; }
-    const meta = msg.metadata || {};
-    if (this.dedupe(meta.message_id)) return;           // Twitch puede reenviar: se ignora el repetido
-    switch (meta.message_type) {
-      case 'session_welcome': {
-        rec.sessionId = msg.payload.session.id;
-        rec.keepalive = msg.payload.session.keepalive_timeout_seconds || 10;
-        this.armWatchdog(rec);
-        if (rec.migrating) {   // la nueva conexión hereda las suscripciones: se cierra la vieja sin perder el estado
-          const old = this.active; this.active = rec; this.pending = null; rec.migrating = false;
-          if (old) { old.dead = true; clearTimeout(old.wd); try { old.ws.close(1000); } catch {} }
-          return;
-        }
-        this.subscribe(rec).then(() => {
-          if (rec.dead) return;
-          this.retryN = 0; this.setStatus('connected');
-        }).catch(e => {
-          if (rec.dead) return;
-          if (e.code === 'AUTH') return;                 // ya notificado por invalidateTokens
-          this.onLost(rec, { code: 'lost_subscribe', detail: e.message });
-        });
-        return;
-      }
-      case 'session_keepalive': this.armWatchdog(rec); return;
-      case 'session_reconnect':
-        this.armWatchdog(rec);
-        if (!this.pending) this.openSocket(msg.payload.session.reconnect_url, true);   // URL tal cual, sin modificarla
-        return;
-      case 'notification': {
-        this.armWatchdog(rec);
-        if (meta.subscription_type !== 'channel.chat.message') return;
-        const e = msg.payload.event || {};
-        this.emit('message', { messageId: e.message_id, chatterId: e.chatter_user_id, chatterLogin: e.chatter_user_login,
-          text: (e.message && e.message.text) || '', receivedAt: Date.now() });
-        return;
-      }
-      case 'revocation': {
-        const st = msg.payload.subscription && msg.payload.subscription.status;
-        this.wanted = false; this.shutdownSockets();
-        this.setStatus('disconnected', { code: 'revoked', detail: st });
-        return;
-      }
-      default: return;
-    }
-  }
-  async subscribe(rec) {
-    const res = await this.api('POST', `${HELIX}/eventsub/subscriptions`, {
-      type: 'channel.chat.message', version: '1',
-      condition: { broadcaster_user_id: this.channelUser.id, user_id: this.user.id },
-      transport: { method: 'websocket', session_id: rec.sessionId },
-    });
-    if (res.status !== 202) {
-      const j = await res.json().catch(() => ({}));
-      throw new Error(`HTTP ${res.status} ${j.message || ''}`.trim());
-    }
-  }
-  onClose(rec) {
-    clearTimeout(rec.wd);
-    if (rec.dead) return;
-    if (rec === this.pending) { this.pending = null; return; }   // falló la migración: la vieja sigue viva
-    if (rec === this.active) this.onLost(rec, { code: 'lost_closed' });
-  }
-  onLost(rec, why) {
-    if (rec.dead) return;
-    rec.dead = true; clearTimeout(rec.wd); try { rec.ws.close(); } catch {}
-    if (this.active === rec) this.active = null;
-    if (!this.wanted) return;
-    this.setStatus('reconnecting', why);
-    this.scheduleRetry();
-  }
-  scheduleRetry() {
-    clearTimeout(this.retryTimer);
-    const delay = Math.min(30000, this.backoffBaseMs * 2 ** this.retryN++);
-    this.retryTimer = setTimeout(async () => {
-      if (!this.wanted) return;
-      try { await this.ensureToken(); if (this.wanted) this.openSocket(this.eventsubUrl, false); }
-      catch (e) { if (e.code !== 'AUTH' && this.wanted) this.scheduleRetry(); }
-    }, delay);
-    this.retryTimer.unref && this.retryTimer.unref();
   }
 }
 
-module.exports = { Twitch, AuthError, BusyError, SCOPES, EVENTSUB_URL };
+module.exports = { Twitch, AuthError, SCOPES, EVENTSUB_URL };
