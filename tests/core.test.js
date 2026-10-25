@@ -2,30 +2,9 @@
 // Pruebas del núcleo compartido con un RELOJ SIMULADO: los tiempos se avanzan a mano, sin esperas reales.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const Core = require('../core');
+const { makeClock } = require('./helpers');   // reloj simulado compartido con contract.test.js
 
-/* ---------- reloj simulado ---------- */
-function makeClock() {
-  let t = 1_000_000, id = 0; const q = new Map();
-  return {
-    now: () => t,
-    setT: (f, ms) => { const i = ++id; q.set(i, { at: t + ms, f }); return i; },
-    clearT: i => q.delete(i),
-    get active() { return q.size; },
-    advance(ms) {
-      const end = t + ms;
-      for (;;) {
-        let best = null;
-        for (const [i, e] of q) if (e.at <= end && (!best || e.at < best.e.at)) best = { i, e };
-        if (!best) break;
-        q.delete(best.i); t = Math.max(t, best.e.at); best.e.f();
-      }
-      t = end;
-    },
-  };
-}
 const CFG = { ...Core.DEFAULT_CONFIG };       // tiempos por defecto reales (5/8/5/120/8/5/5/8)
 const NAMES = ['ana', 'bob', 'carla', 'diego', 'elena', 'fran', 'gus', 'hugo', 'ivan', 'jose', 'kike', 'luis'];
 const people = (n = 5) => NAMES.slice(0, n).map(k => ({ name: k[0].toUpperCase() + k.slice(1), key: k, userId: 'id_' + k }));
@@ -78,14 +57,7 @@ test('rotación circular de Celestiales: 1, 3, 5, 8 y 10 premios', () => {
   assert.equal(seq(10), "Niuzao,Yu'lon,Chi-ji,Niuzao,Yu'lon,Chi-ji,Niuzao,Yu'lon,Chi-ji,Niuzao");
   assert.equal(Core.roundCelestial(7, 8).name, "Yu'lon"); assert.equal(Core.roundCelestial(8, 8).name, 'Xuen', 'Xuen solo en recuperación');
 });
-test('las copias de core.js, i18n.js y locales/ de la versión manual son idénticas a estas', () => {
-  for (const f of ['core.js', 'i18n.js', 'locales/en.js', 'locales/es.js']) {
-    const sib = ['fate-of-the-adventurers-manual', 'Idea 2 - Manual'].find(n => fs.existsSync(path.join(__dirname, '..', '..', n)));
-    const other = path.join(__dirname, '..', '..', sib || 'fate-of-the-adventurers-manual', f);
-    if (!fs.existsSync(other)) continue;                   // si alguien separa las carpetas, no falla
-    assert.equal(fs.readFileSync(other, 'utf8'), fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), f);
-  }
-});
+// La comprobación de copias idénticas con el repositorio manual vive ahora en shared.test.js (omisión visible, fallo con REQUIRE_SIBLING=1).
 
 /* ---------- fases y temporizadores ---------- */
 test('un solo temporizador activo en todo momento durante un evento completo con ausencias, descalificación y Xuen', () => {

@@ -1,0 +1,44 @@
+# Pruebas automáticas. No despliega nada (Railway sigue desplegando desde master por su cuenta) y no usa secretos.
+# Usa `pull_request` (NO `pull_request_target`): el código del PR corre sin permisos de escritura ni secretos.
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Sin dependencias que instalar. Las pruebas de paridad con el repo manual se marcan como omitidas aquí (ver job `parity`).
+      - run: node --test
+
+  # Paridad con fate-of-the-adventurers-manual (master): archivos compartidos idénticos y misma interfaz salvo el adaptador.
+  # Es informativo: un cambio en archivos compartidos llega a los dos repos con PR distintos, así que mientras el PR hermano no esté
+  # fusionado este job puede fallar legítimamente. Antes de fusionar el segundo PR debe quedar en verde.
+  parity:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: fate-of-the-adventurers-twitch
+      - uses: actions/checkout@v4
+        with:
+          repository: nailuj1992/fate-of-the-adventurers-manual
+          path: fate-of-the-adventurers-manual
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test tests/shared.test.js
+        working-directory: fate-of-the-adventurers-twitch
+        env:
+          REQUIRE_SIBLING: '1'

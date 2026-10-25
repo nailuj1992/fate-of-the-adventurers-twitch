@@ -149,3 +149,58 @@ test('local: no pide sesión y muestra al último streamer que inició sesión',
     assert.equal(JSON.parse((await call('/api/state')).body).twitch.user, 'bob');
   } finally { await close(); }
 });
+
+/* ---------- CARACTERIZACIÓN de la tabla de rutas y códigos de estado actuales (refactor/0) ---------- */
+test('estáticos: solo la lista cerrada de módulos compartidos e imágenes; nada más se sirve', async () => {
+  const { signIn, call, as, close } = await boot();
+  try {
+    const { cookie } = await signIn('111', 'ana');
+    const home = await call('/', { headers: as(cookie) });
+    assert.equal(home.status, 200); assert.match(home.headers['content-type'], /^text\/html/); assert.equal(home.headers['cache-control'], 'no-store');
+    for (const p of ['/core.js', '/i18n.js', '/locales/en.js', '/locales/es.js']) {
+      const r = await call(p);
+      assert.equal(r.status, 200, p); assert.match(r.headers['content-type'], /^application\/javascript/);
+    }
+    for (const [name, type] of [['niuzao.png', 'image/png'], ['yulon.webp', 'image/webp'], ['chiji.png', 'image/png'], ['xuen.webp', 'image/webp']]) {
+      const r = await call('/img/' + name); assert.equal(r.status, 200, name); assert.equal(r.headers['content-type'], type);
+    }
+    for (const p of ['/server.js', '/.env', '/data/tokens.json', '/locales/fr.js', '/img/nope.png', '/img/../server.js', '/nada', '/public/index.html'])
+      assert.equal((await call(p, { headers: as(cookie) })).status, 404, p);
+  } finally { await close(); }
+});
+
+test('órdenes: método/Content-Type/orden desconocida/JSON inválido (códigos actuales)', async () => {
+  const { signIn, call, post, as, close } = await boot();
+  try {
+    const { cookie } = await signIn('111', 'ana');
+    const noType = await call('/api/confirm', { method: 'POST', headers: as(cookie), body: '{}' });
+    assert.equal(noType.status, 415);
+    const unknown = await post('/api/nope', cookie, {});
+    assert.equal(unknown.status, 404); assert.equal(JSON.parse(unknown.body).ok, false);
+    const known = await post('/api/confirm', cookie, {});
+    assert.equal(known.status, 200); assert.equal(JSON.parse(known.body).errorKey, 'err.no_active_confirm');
+    // Comportamiento ACTUAL (defecto D-2): un JSON inválido responde 500. Al corregirlo (4xx) esta aserción cambia a propósito.
+    const badJson = await call('/api/confirm', { method: 'POST', headers: { ...as(cookie), ...JSON_H }, body: '{no es json' });
+    assert.equal(badJson.status, 500);
+    assert.equal((await call('/api/state', { method: 'POST', headers: { ...as(cookie), ...JSON_H }, body: '{}' })).status, 404);
+  } finally { await close(); }
+});
+
+test('SSE: /api/events entrega primero el estado completo del streamer de la sesión', async () => {
+  const { signIn, server, close } = await boot();
+  try {
+    const { cookie } = await signIn('111', 'ana');
+    const port = server.address().port;
+    const first = await new Promise((resolve, reject) => {
+      const req = http.request({ port, host: '127.0.0.1', path: '/api/events', headers: { Host: 'app.example.test', Cookie: cookie } }, res => {
+        assert.equal(res.statusCode, 200); assert.equal(res.headers['content-type'], 'text/event-stream');
+        res.once('data', c => { req.destroy(); resolve(String(c)); });
+      });
+      req.on('error', e => (e.code === 'ECONNRESET' ? null : reject(e))); req.end();
+    });
+    assert.match(first, /^data: \{/);
+    const st = JSON.parse(first.slice(6));
+    assert.equal(st.twitch.user, 'ana'); assert.equal(st.screen, 'admin');
+    assert.deepEqual(Object.keys(st).filter(k => ['config', 'defaults', 'limits', 'twitch'].includes(k)).sort(), ['config', 'defaults', 'limits', 'twitch']);
+  } finally { await close(); }
+});

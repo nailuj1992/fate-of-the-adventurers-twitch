@@ -19,16 +19,16 @@ class Game extends EventEmitter {
   /**
    * config: configuración guardada (en segundos, ver Core.DEFAULT_CONFIG).
    * store: StreamerStore opcional; con él, configuración e historial se guardan por cuenta de Twitch (owner = ID de usuario).
-   * unsafeConfig / pick: solo para pruebas (duraciones fraccionarias, extracción determinista).
+   * unsafeConfig / pick / clock: solo para pruebas (duraciones fraccionarias, extracción determinista, reloj simulado {now, setT, clearT}).
    */
-  constructor({ twitch, config = {}, store = null, historyFile = null, pick, unsafeConfig = false }) {
+  constructor({ twitch, config = {}, store = null, historyFile = null, pick, unsafeConfig = false, clock = {} }) {
     super();
     this.twitch = twitch; this.store = store; this.historyFile = historyFile;
     this.owner = null;   // ID de Twitch del streamer dueño de la configuración y del historial actuales
      this.unsafe = unsafeConfig;
     this.config = Core.validateConfig(config, undefined, unsafeConfig).config;
     this.engine = new Core.Engine({
-      pick, connection: () => twitch.status,
+      pick, now: clock.now, setT: clock.setT, clearT: clock.clearT, connection: () => twitch.status,
       onChange: () => this.emit('change'),
       onLog: (e, eventId) => this.persistLog(e, eventId),
     });
