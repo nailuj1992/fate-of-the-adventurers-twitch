@@ -30,6 +30,8 @@
     graceSec: 30,         // avanzado: plazo extra tras recuperar la conexión si hubo una caída
   };
   const MAX_PRIZES = 50;
+  const SEEN_CHAT_MAX = 5000;       // ids de mensaje de chat recordados para no procesar dos veces el mismo
+  const HISTORY_VIEW_MAX = 300;     // entradas del historial que viajan a la interfaz (el historial completo se conserva en el motor)
   const LIMITS = {        // [mín, máx] (enteros)
     prizes: [1, MAX_PRIZES], confirmSec: [10, 600], countdownSec: [0, 30], rollSec: [0, 60], revealSec: [0, 30],
     winnerSec: [0, 60], absentSec: [0, 60], transitionSec: [0, 60], introSec: [0, 60], lateSec: [0, 10], graceSec: [0, 300],
@@ -303,7 +305,7 @@
     }
     // Mensaje de chat → ¿confirma al candidato? Se compara el ID de usuario que entrega Twitch.
     handleChat(m) {
-      if (m.messageId) { if (this.seenChat.has(m.messageId)) return; this.seenChat.add(m.messageId); if (this.seenChat.size > 5000) this.seenChat.delete(this.seenChat.values().next().value); }
+      if (m.messageId) { if (this.seenChat.has(m.messageId)) return; this.seenChat.add(m.messageId); if (this.seenChat.size > SEEN_CHAT_MAX) this.seenChat.delete(this.seenChat.values().next().value); }
       const c = this.cur;
       if (!c || c.settled || !LIVE.includes(this.status)) return;
       if (m.receivedAt < c.revealedAt) return;               // solo cuentan mensajes posteriores a la revelación
@@ -528,7 +530,7 @@
         prizesDelivered: e.winners.filter(w => w.round < e.prizes).length,
         prizesRecovered: e.winners.filter(w => w.round >= e.prizes).length,
       },
-      history: e.history.slice(-300), final: e.final, notice,
+      history: e.history.slice(-HISTORY_VIEW_MAX), final: e.final, notice,
       skippable: !!(ph && !ph.paused && SKIPPABLE.includes(ph.name)),
     };
   }
