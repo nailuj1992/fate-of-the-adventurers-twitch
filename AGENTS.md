@@ -81,6 +81,7 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 - **Add a language:** copy `locales/en.js`, translate, register it in `i18n.js` (`SUPPORTED`, loaders), in `server.js` (`SHARED` list) and as a `<script>` in `public/index.html`; extend the switcher; tests then enforce parity.
 - **Change phase behaviour/timing semantics:** edit `core.js` only, update `core.test.js` (simulated clock) first, then `game.test.js`.
 - **Touch Twitch integration** (`twitch.js`): follow the official EventSub docs (welcome → subscribe within 10 s, `session_reconnect` migration, keepalive watchdog, `message_id` dedupe). Keep `user:read:chat` as the only scope.
+- **Screenshots:** both READMEs use `docs/img/<en|es>/NN-*.webp` (sections 3-5). They were taken from the real UI connected to a **simulated Twitch** (fictional account and chat) with fictional names; never publish screenshots of the Twitch console, `.env`, tokens or real accounts. When the UI changes visibly, retake them (both languages, same file names).
 - **Update docs:** keep `README.md` (English) and `README.es.md` (Spanish) in sync, and this file when a convention changes.
 
 ## Testing
@@ -97,7 +98,7 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 - **Never commit or print secrets**: `.env`, `TWITCH_CLIENT_SECRET`, `data/tokens.json`, access/refresh tokens. If one leaks, tell the maintainer immediately so it can be rotated.
 - **Never push to `master` directly**; never push tags; never force-push.
 - Never request additional Twitch scopes or store tokens in the browser. Tokens and the client secret stay server-side.
-- Never widen the server beyond `127.0.0.1` or relax the `Host`/`Origin` checks.
+- In local mode never widen the server beyond `127.0.0.1`; never relax the `Host`/`Origin` checks in either mode.
 - Don't add dependencies, a bundler or a framework.
 - Don't remove the English default or let the browser language pick the UI language.
 - Don't change the Celestial artwork or names without being asked.
