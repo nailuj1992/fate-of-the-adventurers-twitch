@@ -42,7 +42,9 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 | `railway.json` | Railway deploy settings (start command, `/healthz` check). |
 | `store.js` | `StreamerStore`: per-streamer data under `data/streamers/<twitch-id>/` (`config.json`, `historial.jsonl`); validates the ID (digits only); migrates legacy single-file data to the first account that signs in. |
 | `server.js` | Local HTTP server (`127.0.0.1` only): static files, OAuth routes, SSE state stream, command routes (`/api/*`), server-side error pages (translated by cookie). |
-| `twitch.js` | OAuth + EventSub client: token refresh/validation, subscription, reconnect/migration, dedupe, backoff. |
+| `twitch.js` | Per-streamer Twitch façade (same class, events and import path): owns the account (`user`, `channelUser`), the connection `status` and the hourly token validation, and wires the two modules below. |
+| `twitch/auth.js` | `TwitchAuth`: tokens on disk, OAuth authorization code (`authUrl`, `exchange`), refresh/validate, Helix calls (`api`, `resolveLogins`, `subscribeChat`). Emits `invalidated` when the refresh token stops working. |
+| `twitch/eventsub.js` | `EventSubSession`: EventSub WebSocket lifecycle — welcome, `session_reconnect` migration, keepalive watchdog, exponential backoff, `message_id` dedupe. Knows nothing about tokens or accounts. |
 | `public/index.html` | The whole UI. Only renders the state it receives and sends commands. Contains an **adapter** section (`MODE = 'twitch'`) that differs from the manual repo. |
 | `public/img/` | Celestial images (`niuzao.png`, `yulon.webp`, `chiji.png`, `xuen.webp`). Third-party artwork (not owned by the maintainer): do not add more of it or redistribute it elsewhere; the maintainer decides if it must be replaced. |
 | `tests/` | `core.test.js` (engine with a simulated clock), `game.test.js` (wrapper, real timers), `twitch.test.js` (OAuth/EventSub with fake WebSocket/fetch), `i18n.test.js` (parity and key coverage). |
