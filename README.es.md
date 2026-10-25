@@ -39,7 +39,7 @@ node server.js
 Abre **http://localhost:3000** (usa `localhost`, no la IP) y pulsa **Conectar con Twitch**. Autoriza con la
 cuenta que leerá el chat (normalmente la tuya, la del canal). El único permiso solicitado es
 **`user:read:chat`**. La app muestra el estado: *conectado / reconectando / desconectado*.
-Los tokens se guardan en `data/tokens.json` (texto plano, solo en tu PC); no tendrás que volver a autorizar en
+Los tokens de cada cuenta se guardan en `data/streamers/<id-de-twitch>/tokens.json` (texto plano, solo en tu PC; las versiones anteriores usaban `data/tokens.json`, que ya no se lee: conéctate una vez más); no tendrás que volver a autorizar en
 cada arranque. «Cerrar sesión de Twitch» los borra.
 
 ## 4. Configurar un sorteo (cantidad de premios y tiempos)
@@ -66,7 +66,7 @@ En el panel de administración, pestaña **Configuración**:
 
 **Ejemplo: sorteo de 8 premios con 60 s de confirmación** → pega al menos 8 nombres en *Participantes*, en *Configuración* pon `8` en «Cantidad de ganadores» y `60` en «Tiempo para confirmar presencia», comprueba la vista previa, pulsa **Iniciar sorteo** y confirma.
 
-La configuración se guarda **en el servidor** (`data/streamers/<id-de-twitch>/config.json`, sin credenciales) y persiste entre sesiones. **Cada cuenta de Twitch tiene su propia carpeta** (identificada por su ID numérico, que no cambia): la configuración y el historial nunca se comparten ni se pisan entre streamers, e iniciar sesión con otra cuenta carga la configuración de esa cuenta. Con un evento en marcha se rechaza iniciar sesión con una cuenta *distinta*. **Queda bloqueada al iniciar el evento**: el servidor rechaza cualquier cambio hasta que termine o se cancele/reinicie con confirmación. Los valores por defecto y los límites viven en un solo sitio: `core.js → DEFAULT_CONFIG / LIMITS`.
+La configuración se guarda **en el servidor** (`data/streamers/<id-de-twitch>/config.json`, sin credenciales) y persiste entre sesiones. **Cada cuenta de Twitch tiene su propia carpeta** (identificada por su ID numérico, que no cambia): la configuración y el historial nunca se comparten ni se pisan entre streamers, e iniciar sesión con otra cuenta carga la configuración de esa cuenta. Cada cuenta con sesión iniciada maneja su propio evento de forma independiente. **Queda bloqueada al iniciar el evento**: el servidor rechaza cualquier cambio hasta que termine o se cancele/reinicie con confirmación. Los valores por defecto y los límites viven en un solo sitio: `core.js → DEFAULT_CONFIG / LIMITS`.
 
 ## 5. Cómo transcurre el evento (flujo automático)
 Tras **Iniciar sorteo** todo avanza solo, con tus duraciones:
@@ -114,9 +114,12 @@ Por defecto el servidor es solo local (`127.0.0.1`, sin inicio de sesión en el 
 2. **Volumen**: añade un volumen y móntalo (p. ej. en `/data`); define `DATA_DIR=/data` para que tokens, configuración e historial sobrevivan a los redespliegues.
 3. **Variables** (Railway → Variables, nunca en el repositorio): `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, `TWITCH_CHANNEL`, `DATA_DIR` y
    - `PUBLIC_URL`: el origen público con HTTPS, p. ej. `https://tu-app.up.railway.app` (sin ruta). Al definirla se activa el **modo remoto**.
-   - `ALLOWED_LOGINS`: logins de Twitch que pueden usar el panel, separados por comas (por defecto `TWITCH_CHANNEL`).
+   - `ALLOWED_LOGINS`: logins de Twitch que pueden iniciar sesión, separados por comas, o `*` para admitir **cualquier** cuenta de Twitch (por defecto `TWITCH_CHANNEL`).
+   - `MAX_STREAMERS` (opcional, 20 por defecto): cuántos streamers pueden estar conectados a la vez; cada uno mantiene su propia conexión con Twitch.
 4. **Consola de Twitch**: añade `PUBLIC_URL/auth/callback` a las OAuth Redirect URLs de la aplicación (debe coincidir con `TWITCH_REDIRECT_URI`, que por defecto vale eso).
 5. Abre `PUBLIC_URL` e inicia sesión con Twitch.
+
+**Varios streamers a la vez:** cada streamer que inicia sesión tiene su propia conexión a Twitch, sus tokens, su motor de sorteo, su configuración y su historial; la cookie de sesión lleva su ID de Twitch, así que cada persona solo ve y maneja su propio evento. En modo remoto cada streamer lee **el chat de su propio canal** (`TWITCH_CHANNEL` se ignora). Un streamer que cierra sesión sin evento en marcha se libera de la memoria; con un evento en marcha se conserva hasta que termine.
 
 En modo remoto: el panel, el flujo de estado y todas las órdenes exigen una sesión (cookie HttpOnly, Secure, SameSite=Lax, 12 h) que se obtiene iniciando sesión con una cuenta permitida; cualquier otra cuenta se rechaza antes de guardar nada. `Host` y `Origin` deben coincidir con `PUBLIC_URL`. El servidor no arranca sin un `PUBLIC_URL` con `https://` y una lista de cuentas permitidas. Las sesiones viven en memoria, así que tras un reinicio hay que volver a iniciar sesión (los tokens de Twitch persisten en el volumen). `/healthz` devuelve `ok` y ningún dato.
 
@@ -168,5 +171,6 @@ twitch.js        OAuth + EventSub WebSocket (reconexión, dedupe, refresco de to
 public/index.html  interfaz (solo muestra el estado y envía órdenes)
 tests/           pruebas automáticas
 store.js         datos por streamer: data/streamers/<id-de-twitch>/ (config + historial)
-data/            tokens.json y streamers/ (generados, fuera de control de versiones)
+tenants.js        una conexión + un motor por streamer con sesión iniciada
+data/            streamers/<id-de-twitch>/ con tokens.json, config.json e historial.jsonl (generados, fuera de control de versiones)
 ```

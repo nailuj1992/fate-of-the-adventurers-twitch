@@ -142,22 +142,33 @@ class Twitch extends EventEmitter {
       scope: SCOPES.join(' '), state }).toString();
     return u.toString();
   }
-  async handleCallback(query) {
+  /**
+   * Primera mitad del callback, sin efectos sobre la sesión: valida el state, canjea el código e identifica la cuenta.
+   * Devuelve { tokens, who } (who = respuesta de /oauth2/validate: user_id, login…).
+   */
+  async exchange(query) {
     if (query.error) throw new Error(`Twitch denied access: ${query.error_description || query.error}`);
     const exp = this.oauthStates.get(query.state);
     this.oauthStates.delete(query.state);
     if (!exp || exp < Date.now()) throw new Error('Invalid or expired state parameter (possible CSRF)');
     const { res, j } = await this.tokenRequest({ grant_type: 'authorization_code', code: query.code, redirect_uri: this.redirectUri });
     if (!res.ok) throw new Error(`Code exchange: ${j.message || 'HTTP ' + res.status}`);
-    const fresh = Twitch.toTokens(j);
+    const tokens = Twitch.toTokens(j);
+    return { tokens, who: await this.identify(tokens.accessToken) };
+  }
+  /** Segunda mitad: esta instancia pasa a usar esos tokens (se guardan, se valida el scope y se conecta al chat). */
+  async adopt(tokens) {
+    this.tokens = tokens; this.saveTokens();
+    await this.setup();
+    this.connect();
+  }
+  async handleCallback(query) {
     // Se identifica a la cuenta ANTES de tocar la sesión actual: si es otra y hay un evento en marcha, se rechaza sin cambiar nada.
-    const who = await this.identify(fresh.accessToken);
+    const { tokens: fresh, who } = await this.exchange(query);
     if (!this.allowLogin(String(who.login || '').toLowerCase())) throw new AuthError('This Twitch account is not allowed to use the panel');
     if (this.user && this.user.id !== who.user_id && !this.canChangeAccount())
       throw new BusyError(`An event is in progress for @${this.user.login}; finish or cancel it before signing in with another account`);
-    this.tokens = fresh; this.saveTokens();
-    await this.setup();
-    this.connect();
+    await this.adopt(fresh);
   }
   /** Quién es el dueño de un token (endpoint validate), sin efectos secundarios. */
   async identify(accessToken) {
