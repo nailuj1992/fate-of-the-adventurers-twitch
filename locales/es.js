@@ -222,6 +222,7 @@
     // Historial del evento (el motor guarda clave + parámetros; se traduce al idioma activo)
     log: {
       via: { chat: 'mensaje en el chat', manual: 'confirmación manual' },
+      shuffled: 'Lista de participantes barajada en un orden aleatorio seguro ({count} nombres).',
       event_started: 'Evento iniciado: {prizes} premio(s), {participants} participantes. Todos son elegibles para todas las rondas. Rotación: {rotation}.',
       round_begin: 'Comienza el premio {prize} de {prizes} — {celestial}.',
       xuen_activated: 'Se activa Xuen — La fuerza: {count} premio(s) sin adjudicar ({list}) pasan a recuperación.',

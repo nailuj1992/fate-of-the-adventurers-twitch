@@ -222,6 +222,7 @@
     // Historial del evento (el motor guarda clave + parámetros; se traduce al idioma activo)
     log: {
       via: { chat: 'chat message', manual: 'manual confirmation' },
+      shuffled: 'Participant list shuffled in a secure random order ({count} names).',
       event_started: 'Event started: {prizes} prize(s), {participants} participants. Everyone is eligible for every round. Rotation: {rotation}.',
       round_begin: 'Prize {prize} of {prizes} begins — {celestial}.',
       xuen_activated: 'Xuen — The Trial of Strength is activated: {count} unassigned prize(s) ({list}) move to recovery.',

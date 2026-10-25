@@ -1,4 +1,4 @@
-# El destino de los aventureros: El juicio de los Celestiales (v3 · Twitch)
+# El destino de los aventureros: El juicio de los Celestiales (versión Twitch)
 
 > 🌐 [English](README.md) · **Español**
 
@@ -101,7 +101,8 @@ Introducción del Celestial → cuenta atrás → selección → revelación →
 ```
 - **El plazo de confirmación empieza cuando termina la revelación**: el nombre ya es visible y se está escuchando el chat desde que empezó la revelación (un mensaje en ese momento ya confirma), pero **ninguna animación previa descuenta tiempo**. El plazo lo lleva el **servidor**; la página solo lo dibuja.
 - **Cualquier mensaje del elegido en el chat** confirma su presencia (sin comando).
-- **Último candidato:** si, tras no responder los demás, queda **una sola** persona elegible para ese premio, ya no hay nada que sortear: se salta la cuenta atrás y el roll y esa persona se revela de inmediato como candidata (aun así debe confirmar su presencia a tiempo).
+- **Barajado:** al iniciar el sorteo, la lista de participantes se baraja en un orden aleatorio seguro (Fisher–Yates con `crypto.getRandomValues`), así que el orden en que se escribieron los nombres no influye; queda anotado en el historial.
+- **Último candidato:** siempre que quede **una sola** persona elegible para un sorteo (porque los demás no respondieron o ya ganaron, Xuen incluido), ya no hay nada que sortear: se salta la cuenta atrás y el roll y esa persona se revela de inmediato como candidata (aun así debe confirmar su presencia a tiempo).
 - **Controles del presentador:** *Confirmar presencia* (respaldo manual), *Pausar* (congela la fase en curso, también el plazo de confirmación; se muestra «EVENTO EN PAUSA»), *Saltar espera* (introducción, ganador, ausente, transición), *Descalificar del sorteo*, *Cancelar sorteo*, *Reiniciar sorteo*.
 
 ### Paso a paso durante un evento

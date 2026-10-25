@@ -1,4 +1,4 @@
-# The Fate of the Adventurers: The Trial of the Celestials (v3 · Twitch)
+# The Fate of the Adventurers: The Trial of the Celestials (Twitch version)
 
 > 🌐 **English** · [Español](README.es.md)
 
@@ -102,7 +102,8 @@ Celestial introduction → countdown → selection → reveal → wait for confi
 ```
 - **The confirmation time starts when the reveal ends**: the name is already visible and the chat is already being listened to from the start of the reveal (a message at that moment already confirms), but **no earlier animation uses up any time**. The **server** keeps the time limit; the page only draws it.
 - **Any message from the chosen person in chat** confirms their presence (no command needed).
-- **Last candidate:** if, after the others did not answer, only **one** eligible person is left for that prize, there is nothing left to draw: the countdown and the roll are skipped and that person is revealed right away as the candidate (they still have to confirm their presence in time).
+- **Shuffle:** when the draw starts, the list of participants is shuffled in a secure random order (Fisher–Yates with `crypto.getRandomValues`), so the order in which names were entered has no influence; it is noted in the history.
+- **Last candidate:** whenever only **one** eligible person is left for a draw (because the others did not answer, or already won, Xuen included), there is nothing left to draw: the countdown and the roll are skipped and that person is revealed right away as the candidate (they still have to confirm their presence in time).
 - **Presenter controls:** *Confirm presence* (manual fallback), *Pause* (freezes the current phase, including the confirmation time; "EVENT PAUSED" is shown), *Skip wait* (introduction, winner, absent, transition), *Disqualify from the draw*, *Cancel draw*, *Restart draw*.
 
 ### Step by step during an event

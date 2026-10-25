@@ -90,6 +90,12 @@
     let x; do { c.getRandomValues(b); x = b[0]; } while (x >= limit);
     return x % n;
   }
+  // Barajado Fisher-Yates con la misma aleatoriedad segura (todas las permutaciones equiprobables).
+  function secureShuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = secureIndex(i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
 
   /* =====================================================================
      MOTOR DEL EVENTO
@@ -105,7 +111,8 @@
 
   class Engine {
     /**
-     * deps: { now, setT, clearT, pick, connection(), onChange(), onLog(entry) }
+     * deps: { now, setT, clearT, pick, shuffle, connection(), onChange(), onLog(entry) }
+     * shuffle(lista) → lista: por defecto barajado seguro al iniciar; con un `pick` inyectado (pruebas) no se baraja salvo que se pase `shuffle`.
      * La conexión (Twitch) solo importa a la versión integrada; la manual pasa siempre 'connected'.
      */
     constructor(deps = {}) {
@@ -114,6 +121,7 @@
         setT: deps.setT || ((f, m) => setTimeout(f, m)),
         clearT: deps.clearT || (t => clearTimeout(t)),
         pick: deps.pick || secureIndex,
+        shuffle: deps.shuffle || (deps.pick ? null : secureShuffle),
         connection: deps.connection || (() => 'connected'),
         onChange: deps.onChange || (() => {}),
         onLog: deps.onLog || (() => {}),
@@ -196,8 +204,10 @@
       this.eventId = eventId || new Date(this.o.now()).toISOString();
       this.cfg = { ...cfg }; this.ms = toMs(cfg); this.prizes = cfg.prizes;     // configuración BLOQUEADA durante el evento
       this.participants = participants.map(p => ({ ...p })); this.screen = 'stage';
+      if (this.o.shuffle) this.participants = this.o.shuffle(this.participants);   // el orden de inscripción no influye en nada
       this.log('sys', 'event_started', { prizes: this.prizes, participants: this.participants.length,
         rotation: preview(Math.min(this.prizes, 6)).map(p => p.celestial).join(' → ') + (this.prizes > 6 ? ' …' : '') });
+      if (this.o.shuffle) this.log('sys', 'shuffled', { count: this.participants.length });
       this.beginRound(0); return ok();
     }
 
@@ -218,8 +228,8 @@
     /* ---------- selección ---------- */
     startCountdown(replacement) {
       this.replacement = !!replacement;
-      // Reemplazo con un solo elegible (los demás no respondieron): no hay nada que sortear, se salta la cuenta atrás y el roll.
-      if (this.replacement && this.eligible().length === 1) { this.doDraw(true); return; }
+      // Un solo elegible (p. ej. los demás no respondieron o ya ganaron, también en Xuen): no hay nada que sortear, se salta la cuenta atrás y el roll.
+      if (this.eligible().length === 1) { this.doDraw(true); return; }
       this.enter('countdown', 'countdown', this.ms.countdown);
     }
     // EXTRACCIÓN: ocurre aquí, al terminar la cuenta atrás; nunca se calcula por adelantado. El elegido sale del conjunto al instante.
@@ -510,5 +520,5 @@
     }
   }
 
-  return { DEFAULT_CONFIG, LIMITS, CONFIG_KEYS, MAX_PRIZES, validateConfig, toMs, CELESTIALS, XUEN, roundCelestial, preview, secureIndex, Engine, LIVE };
+  return { DEFAULT_CONFIG, LIMITS, CONFIG_KEYS, MAX_PRIZES, validateConfig, toMs, CELESTIALS, XUEN, roundCelestial, preview, secureIndex, secureShuffle, Engine, LIVE };
 });
