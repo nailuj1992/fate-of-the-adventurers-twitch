@@ -10,6 +10,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Twitch } = require('./twitch');
 const { Game } = require('./game');
+const { StreamerStore } = require('./store');
 const I18n = require('./i18n');
 
 // ---- .env mínimo (sin dotenv) ----
@@ -133,15 +134,9 @@ if (require.main === module) {
     redirectUri: REDIRECT_URI, channel: process.env.TWITCH_CHANNEL,
     tokenFile: path.join(DATA, 'tokens.json'), log: m => console.log('[twitch]', m),
   });
-  // Configuración del sorteo: se guarda en el servidor (no en el navegador) y no contiene credenciales.
-  const CONFIG_FILE = path.join(DATA, 'config.json');
-  let saved = {};
-  try { saved = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); } catch {}
-  const game = new Game({ twitch, config: saved, historyFile: path.join(DATA, 'historial.jsonl') });
-  game.on('config', cfg => {
-    try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2)); }
-    catch (e) { console.error('config:', e.message); }
-  });
+  // Configuración e historial: en el servidor (no en el navegador), sin credenciales y separados por cuenta de Twitch (data/streamers/<id>/).
+  const game = new Game({ twitch, store: new StreamerStore(DATA) });
+  twitch.canChangeAccount = () => game.screen === 'admin';   // con un evento en marcha no se admite iniciar sesión con otra cuenta
   createApp(twitch, game).listen(PORT, '127.0.0.1', () => {
     console.log('\n' + tc('srv.listening', { url: `http://localhost:${PORT}` }));
     if (!twitch.configured) console.log(tc('srv.missingCreds'));

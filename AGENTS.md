@@ -32,7 +32,8 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 |---|---|
 | `core.js` | **Shared** pure engine (no DOM, no network): default settings and limits, config validation, Celestial rotation, eligibility, the event state machine with its single phase scheduler, history entries. Works in Node and in the browser (UMD). |
 | `i18n.js` + `locales/en.js`, `locales/es.js` | **Shared** i18n module and catalogs (flat keys, `{params}`, plural suffixes `_one`/`_other`, `{ $t: 'key' }` fragments). |
-| `game.js` | Twitch wrapper around the engine: verifies the participant list against Twitch, resolves user IDs, persists settings, writes `data/historial.jsonl`. |
+| `game.js` | Twitch wrapper around the engine: verifies the participant list against Twitch, resolves user IDs, persists settings and history per streamer (owner = Twitch user ID, set from the `identity` event). |
+| `store.js` | `StreamerStore`: per-streamer data under `data/streamers/<twitch-id>/` (`config.json`, `historial.jsonl`); validates the ID (digits only); migrates legacy single-file data to the first account that signs in. |
 | `server.js` | Local HTTP server (`127.0.0.1` only): static files, OAuth routes, SSE state stream, command routes (`/api/*`), server-side error pages (translated by cookie). |
 | `twitch.js` | OAuth + EventSub client: token refresh/validation, subscription, reconnect/migration, dedupe, backoff. |
 | `public/index.html` | The whole UI. Only renders the state it receives and sends commands. Contains an **adapter** section (`MODE = 'twitch'`) that differs from the manual repo. |
@@ -40,7 +41,7 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 | `tests/` | `core.test.js` (engine with a simulated clock), `game.test.js` (wrapper, real timers), `twitch.test.js` (OAuth/EventSub with fake WebSocket/fetch), `i18n.test.js` (parity and key coverage). |
 | `iniciar.bat` | Windows launcher (creates `.env` from `.env.example`, starts the server, opens the browser). |
 | `.env.example` | Environment template. The real `.env` is git-ignored. |
-| `data/` | Generated at runtime: `tokens.json`, `config.json`, `historial.jsonl`. **Git-ignored. Never commit.** |
+| `data/` | Generated at runtime: `tokens.json` and `streamers/<twitch-id>/{config.json,historial.jsonl}`. **Git-ignored. Never commit.** |
 
 ## Domain rules (invariants — do not break them without tests and the maintainer's OK)
 
@@ -83,6 +84,7 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 
 ## Restrictions
 
+- **Streamer isolation**: settings and history must always be read/written through `StreamerStore` keyed by the authenticated Twitch user ID, never through a shared file. Twitch refuses a login from a different account while an event is running (`canChangeAccount`).
 - **Never commit or print secrets**: `.env`, `TWITCH_CLIENT_SECRET`, `data/tokens.json`, access/refresh tokens. If one leaks, tell the maintainer immediately so it can be rotated.
 - **Never push to `master` directly**; never push tags; never force-push.
 - Never request additional Twitch scopes or store tokens in the browser. Tokens and the client secret stay server-side.
