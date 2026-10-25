@@ -43,7 +43,6 @@ function play(name){
 }
 // Fuerza al navegador a recalcular el diseño (para poder reiniciar una animación CSS quitando y volviendo a poner su clase o estilo).
 const forceReflow = el => el.getBoundingClientRect();
-const fmtTime = d => d.toLocaleTimeString('es-ES');
 
 /* =====================================================================
    ILUSTRACIONES (SVG en línea). Sustituye por <img> si prefieres arte propio.
