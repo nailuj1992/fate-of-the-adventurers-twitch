@@ -13,6 +13,7 @@ const EventEmitter = require('node:events');
 const { Twitch, AuthError } = require('./twitch');
 const { Game } = require('./game');
 const { ID_RE } = require('./store');
+const { forLog } = require('./logging');
 
 class Tenants extends EventEmitter {
   /**
@@ -80,7 +81,7 @@ class Tenants extends EventEmitter {
       const mtime = this.store.tokenMtime(id);
       if (mtime === null) continue;                 // sin tokens guardados: no hay sesión que recuperar
       const t = this.build(id);
-      t.twitch.init().catch(e => console.error('[twitch] init:', String(e.message).replace(/[\u0000-\u001f\u007f]+/g, ' ')));
+      t.twitch.init().catch(e => console.error('[twitch] init:', forLog(e.message)));
       if (!best || mtime > best.mtime) best = { t, mtime };
     }
     if (best && this.local) this.setCurrent(best.t);

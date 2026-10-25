@@ -37,6 +37,11 @@
   // Orden de las opciones en el panel. Etiquetas y textos de ayuda: catálogos (cfg.label.<clave>, cfg.help.<clave>).
   const CONFIG_KEYS = Object.keys(DEFAULT_CONFIG);
 
+  // Reglas de los datos que escribe el presentador. La interfaz las usa para avisar al instante; quien valida de verdad
+  // (el servidor de Twitch o el motor) usa la MISMA definición, así que nunca pueden discrepar.
+  const LOGIN_RE = /^\w{1,25}$/;       // usuario de Twitch: letras, números y «_» (1–25); \w sin la bandera u = [A-Za-z0-9_]
+  const REASON = { min: 3, max: 200 }; // motivo escrito de una descalificación: longitud mínima y máxima (caracteres)
+
   /**
    * Valida una configuración. Acepta números o textos numéricos enteros. Devuelve {ok, config, errors}.
    * Cada error es un código traducible por la interfaz: {code:'number'|'integer'|'range'|'max_participants', min?, max?, count?}.
@@ -395,8 +400,8 @@
     confirmManual() { return this.settle('confirmed', 'manual') ? ok() : err('no_active_confirm'); }
     // Descalificación GLOBAL del candidato actual por incumplir las reglas; exige motivo (la interfaz pide confirmación).
     disqualify(reason) {
-      const r = String(reason || '').replace(/\s+/g, ' ').trim().slice(0, 200);
-      if (r.length < 3) return err('reason_required');
+      const r = String(reason || '').replace(/\s+/g, ' ').trim().slice(0, REASON.max);
+      if (r.length < REASON.min) return err('reason_required');
       return this.settle('disqualified', 'manual', { reason: r }) ? ok() : err('no_active_confirm');
     }
     // Pausa genérica de la fase con tiempo en curso (en la confirmación, además, se muestra el aviso de pausa).
@@ -528,5 +533,5 @@
     };
   }
 
-  return { DEFAULT_CONFIG, LIMITS, CONFIG_KEYS, MAX_PRIZES, validateConfig, toMs, CELESTIALS, XUEN, roundCelestial, preview, secureIndex, secureShuffle, Engine, LIVE, ok, err };
+  return { DEFAULT_CONFIG, LIMITS, CONFIG_KEYS, MAX_PRIZES, validateConfig, toMs, CELESTIALS, XUEN, roundCelestial, preview, secureIndex, secureShuffle, Engine, LIVE, ok, err, LOGIN_RE, REASON };
 });

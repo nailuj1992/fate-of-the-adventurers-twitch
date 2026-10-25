@@ -9,7 +9,6 @@
    ===================================================================== */
 const normKey = s => s.normalize('NFC').toLocaleLowerCase(I18n.locale);
 const cleanLine = s => { const x = s.replace(/\s+/g,' ').trim(); return ADAPTER.twitchNames ? x.replace(/^@/,'') : x; };
-const LOGIN_RE = /^\w{1,25}$/;                      // \w = [A-Za-z0-9_] (sin la bandera u)
 let serverErr = null;                                // resultado fallido al intentar iniciar ({errorKey, errorParams, errors}); se traduce al pintar
 
 function analyze(){
@@ -17,7 +16,7 @@ function analyze(){
   lines.forEach((raw, i) => {
     const name = cleanLine(raw);
     if (!name){ empty++; return; }
-    if (ADAPTER.twitchNames && !LOGIN_RE.test(name)){ bad.push({name, line:i+1}); return; }
+    if (ADAPTER.twitchNames && !Core.LOGIN_RE.test(name)){ bad.push({name, line:i+1}); return; }
     const key = normKey(name);
     if (!seen.has(key)) seen.set(key, {name, lines:[i+1], count:0});
     const e = seen.get(key); e.count++; if (e.lines[e.lines.length-1] !== i+1) e.lines.push(i+1);
@@ -68,7 +67,7 @@ function renderCfg(){
   const ul = $('cfgPreview'); ul.innerHTML = '';
   if (n){
     Core.preview(n).forEach(p => { const li = document.createElement('li'); li.innerHTML = '<b></b><span></span>'; li.firstChild.textContent = t('cfg.preview.prize', { n: p.prize }); li.lastChild.textContent = '— ' + celInfo(p.index).long; ul.appendChild(li); });
-    const x = document.createElement('li'); x.className = 'xrow'; x.innerHTML = '<b>Xuen</b><span></span>'; x.lastChild.textContent = t('cfg.preview.xuen'); ul.appendChild(x);
+    const x = document.createElement('li'); x.className = 'xrow'; x.innerHTML = '<b></b><span></span>'; x.firstChild.textContent = Core.XUEN.name; x.lastChild.textContent = t('cfg.preview.xuen'); ul.appendChild(x);
   } else { const li = document.createElement('li'); li.textContent = t('cfg.preview.invalid'); ul.appendChild(li); }
   $('cfgSave').disabled = !cfgCheck.ok || S.screen !== 'admin';
   $('cfgDirty').classList.toggle('hide', !cfgDirty);

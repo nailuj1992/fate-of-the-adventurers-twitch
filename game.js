@@ -7,8 +7,7 @@
 const EventEmitter = require('node:events');
 const Core = require('./core');
 
-const LOGIN_RE = /^[A-Za-z0-9_]{1,25}$/;
-const { ok } = Core;
+const { ok, LOGIN_RE } = Core;
 // Errores como los del motor (código + parámetros, ver Core.err) más datos extra, p. ej. el detalle por campo de una configuración inválida.
 const err = (code, params = {}, extra = {}) => ({ ...Core.err(code, params), ...extra });
 

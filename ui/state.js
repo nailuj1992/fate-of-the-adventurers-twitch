@@ -85,7 +85,7 @@ function transition(){
   switch (S.status){
     case 'intro': case 'transition': rays.classList.remove('on'); break;
     case 'countdown': $('countNum').textContent = ''; rays.classList.remove('on'); break;
-    case 'rolling': rollNextAt = 0; rollIdx = secureIndex(Math.max(1, S.rollNames.length)); rays.classList.remove('on'); break;
+    case 'rolling': rollNextAt = 0; rollIdx = Core.secureIndex(Math.max(1, S.rollNames.length)); rays.classList.remove('on'); break;
     case 'reveal': fxReveal(was, rays); break;
     case 'confirming': case 'verifying': case 'paused':
       if (S.candidate && !TIMED.has(was)) setCand(S.candidate, 'revealed', false);

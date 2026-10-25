@@ -126,7 +126,7 @@ function renderHistory(){
     li.className = 't-' + (['conf', 'aus', 'dq', 'des', 'sel', 'xuen'].includes(h.kind) ? h.kind : 'sys');
     const tm = document.createElement('time'); tm.textContent = new Date(h.t).toLocaleTimeString(I18n.locale);
     li.append(tm);
-    if (h.prize){ const tag = document.createElement('span'); tag.className = 'htag'; tag.textContent = (h.phase === 'recovery' ? 'Xuen · ' : '') + 'P' + h.prize + (h.phase === 'recovery' ? '' : ' · ' + h.celestial); li.append(tag); }
+    if (h.prize){ const tag = document.createElement('span'); tag.className = 'htag'; tag.textContent = t(h.phase === 'recovery' ? 'ops.tag.recovery' : 'ops.tag.main', { prize: h.prize, celestial: h.celestial }); li.append(tag); }
     li.append(document.createTextNode(h.key ? t('log.' + h.key, h.params) : h.text)); ul.appendChild(li);   // se traduce al idioma activo
   });
 }
@@ -172,9 +172,10 @@ function ask(text, reason = false){
 // Pide confirmación y un motivo obligatorio (mín. 3 caracteres). Devuelve el motivo, o null si se cancela.
 async function askReason(text){ return await ask(text, true) ? $('modalInput').value.trim() : null; }
 function closeModal(v){
-  if (v && modalReason && $('modalInput').value.trim().length < 3){ $('modalInput').style.outline = '2px solid var(--danger)'; $('modalInput').focus(); return; }
+  if (v && modalReason && $('modalInput').value.trim().length < Core.REASON.min){ $('modalInput').style.outline = '2px solid var(--danger)'; $('modalInput').focus(); return; }
   $('modal').classList.remove('on'); const r = modalResolve; modalResolve = null; if (r) r(v);
 }
+$('modalInput').maxLength = Core.REASON.max;       // mismo tope que aplica el motor al motivo
 $('modalYes').onclick = () => closeModal(true);
 $('modalNo').onclick  = () => closeModal(false);
 

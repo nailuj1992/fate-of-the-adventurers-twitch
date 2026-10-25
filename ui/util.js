@@ -31,24 +31,17 @@ const SOUNDS = { countdown:'', roll:'', reveal:'', expire:'', ambient:'' };
    UTILIDADES
    ===================================================================== */
 const $ = id => document.getElementById(id);
-const wait = ms => new Promise(r => setTimeout(r, ms));
 
 // ÚNICA fuente de aleatoriedad: crypto.getRandomValues (no se usa Math.random en ningún sitio).
 function rand32(){ const b = new Uint32Array(1); crypto.getRandomValues(b); return b[0]; }
 function randFloat(){ return rand32() / 4294967296; }   // solo para efectos visuales
-// Índice uniforme en [0,n) por rechazo: elimina el sesgo de módulo.
-function secureIndex(n){
-  const range = 4294967296, limit = range - (range % n);
-  let x; do { x = rand32(); } while (x >= limit);
-  return x % n;
-}
+// Para elegir un índice (colores, nombre inicial del roll) se usa Core.secureIndex: la misma extracción uniforme que el motor.
 function play(name){
   const src = SOUNDS[name]; if (!src) return;
   try { const a = new Audio(src); a.play().catch(()=>{}); } catch(e){ /* el sonido es opcional: sin audio disponible o con un archivo inválido simplemente no suena */ }
 }
 // Fuerza al navegador a recalcular el diseño (para poder reiniciar una animación CSS quitando y volviendo a poner su clase o estilo).
 const forceReflow = el => el.getBoundingClientRect();
-const fmtTime = d => d.toLocaleTimeString('es-ES');
 
 /* =====================================================================
    ILUSTRACIONES (SVG en línea). Sustituye por <img> si prefieres arte propio.
