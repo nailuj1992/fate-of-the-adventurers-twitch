@@ -161,6 +161,12 @@ test('estáticos: solo la lista cerrada de módulos compartidos e imágenes; nad
       const r = await call(p);
       assert.equal(r.status, 200, p); assert.match(r.headers['content-type'], /^application\/javascript/);
     }
+    for (const n of ['util', 'state', 'admin', 'stage', 'fx', 'main']) {
+      const r = await call(`/ui/${n}.js`);
+      assert.equal(r.status, 200, n); assert.match(r.headers['content-type'], /^application\/javascript/);
+    }
+    assert.equal((await call('/ui/nada.js')).status, 404); assert.equal((await call('/ui/../server.js')).status, 404);
+    assert.match(home.body, /<script src="ui\/main\.js"><\/script>/, 'la página carga los scripts compartidos');
     const css = await call('/css/app.css');
     assert.equal(css.status, 200); assert.match(css.headers['content-type'], /^text\/css/); assert.match(css.body, /--gold:#e3b956/);
     assert.match(home.body, /<link rel="stylesheet" href="css\/app\.css">/, 'la página enlaza la hoja de estilos compartida');
