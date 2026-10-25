@@ -44,6 +44,23 @@ test('loadDotEnv: lee KEY=valor (con comillas), no pisa el entorno y no falla si
   assert.doesNotThrow(() => loadDotEnv(path.join(dir, 'no-existe'), {}));
 });
 
+test('loadDotEnv: casos límite (sin «=», valor vacío, clave inválida, comillas desparejadas, espacios) y sin retroceso en líneas largas', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'env-')), file = path.join(dir, '.env');
+  fs.writeFileSync(file, ['SIN_IGUAL', 'VACIA=', '=sin_clave', 'minuscula=1', 'CON ESPACIO = valor con espacios   ', 'A="sin cierre', "B='x\"", 'C=""', 'D=a=b=c',
+    '   E   =   1   ', 'F=' + ' '.repeat(50000) + 'x', 'G=' + '='.repeat(50000)].join('\n'));
+  const env = {}, t0 = Date.now();
+  loadDotEnv(file, env);
+  assert.ok(Date.now() - t0 < 500, 'se procesa en tiempo lineal');
+  assert.deepEqual({ ...env, F: env.F.length, G: env.G.length }, { VACIA: '', A: '"sin cierre', B: "'x\"", C: '', D: 'a=b=c', E: '1', F: 1, G: 50000 });
+});
+
+test('PUBLIC_URL: se quitan todas las barras finales y solo esas', () => {
+  assert.equal(cfg({ PUBLIC_URL: 'https://a.test' }).publicUrl, 'https://a.test');
+  assert.equal(cfg({ PUBLIC_URL: 'https://a.test/' + '/'.repeat(5000) }).publicUrl, 'https://a.test');
+  assert.equal(cfg({ PUBLIC_URL: 'https://a.test/ruta/' }).publicUrl, 'https://a.test/ruta');
+  assert.equal(cfg({ PUBLIC_URL: '///' }).remote, false, 'solo barras = vacío = modo local');
+});
+
 test('forLog: sin saltos de línea ni caracteres de control, con tope de longitud y aceptando cualquier valor', () => {
   const { forLog, MAX_LOG_CHARS } = require('../logging');
   assert.equal(forLog('línea 1\r\nFALSO [twitch] ok\u0000\u007fcierre'), 'línea 1 FALSO [twitch] ok cierre', 'una racha de controles pasa a UN espacio');

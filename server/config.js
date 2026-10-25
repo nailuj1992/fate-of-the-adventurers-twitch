@@ -14,9 +14,22 @@ function loadDotEnv(file, env = process.env) {
   let text;
   try { text = fs.readFileSync(file, 'utf8'); } catch { return; }
   for (const line of text.split(/\r?\n/)) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
-    if (m && !(m[1] in env)) env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2');
+    // CLAVE=valor sin expresiones regulares con retroceso: se parte por el primer «=» y se recortan los espacios.
+    const eq = line.indexOf('=');
+    if (eq < 0) continue;
+    const key = line.slice(0, eq).trim();
+    if (!KEY_RE.test(key) || key in env) continue;
+    env[key] = unquote(line.slice(eq + 1).trim());
   }
+}
+const KEY_RE = /^[A-Z0-9_]+$/;
+const unquote = v => (v.length >= 2 && (v[0] === '"' || v[0] === "'") && v.at(-1) === v[0] ? v.slice(1, -1) : v);
+
+/** Quita las barras finales de una URL (sin expresión regular: no hay retroceso posible). */
+function trimTrailingSlashes(s) {
+  let end = s.length;
+  while (end > 0 && s[end - 1] === '/') end--;
+  return s.slice(0, end);
 }
 
 /**
@@ -24,7 +37,7 @@ function loadDotEnv(file, env = process.env) {
  * Sin PUBLIC_URL el servidor es local: escucha solo en 127.0.0.1 y no pide sesión.
  */
 function readConfig(env, { dataDirDefault }) {
-  const publicUrl = (env.PUBLIC_URL || '').replace(/\/+$/, '');
+  const publicUrl = trimTrailingSlashes(env.PUBLIC_URL || '');
   const remote = !!publicUrl;
   const port = Number(env.PORT || DEFAULT_PORT);
   // Cuentas de Twitch que pueden usar el panel en modo remoto (logins en minúsculas, separados por comas). Por defecto, el canal.
