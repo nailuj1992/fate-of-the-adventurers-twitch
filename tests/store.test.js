@@ -52,8 +52,11 @@ test('migración: los archivos antiguos los hereda solo el primer streamer', () 
   fs.writeFileSync(path.join(root, 'config.json'), JSON.stringify({ prizes: 4 }));
   fs.writeFileSync(path.join(root, 'historial.jsonl'), '{"event":1}\n');
   const s = new StreamerStore(root);
+  assert.deepEqual(s.loadConfig('111'), {}, 'cargar la configuración ya no migra por su cuenta');
+  s.migrateLegacy('111');                                  // paso explícito (lo hace Game.setOwner)
   assert.deepEqual(s.loadConfig('111'), { prizes: 4 });
   assert.equal(fs.readFileSync(s.historyFile('111'), 'utf8'), '{"event":1}\n');
   assert.ok(fs.existsSync(path.join(root, 'config.json.migrated')) && !fs.existsSync(path.join(root, 'config.json')));
+  s.migrateLegacy('222');
   assert.deepEqual(s.loadConfig('222'), {}, 'el segundo streamer no recibe los datos del primero');
 });

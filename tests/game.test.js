@@ -353,6 +353,17 @@ test('con un evento en marcha, un cambio de identidad no toca la configuración 
   g.cancel(); tw.removeAllListeners();
 });
 
+test('al iniciar sesión el primer streamer hereda la configuración antigua (migración explícita en Game.setOwner)', () => {
+  const { g, store, login } = withStore();
+  fs.writeFileSync(path.join(store.root, 'config.json'), JSON.stringify({ prizes: 4 }));
+  login('111', 'ana');
+  assert.equal(g.config.prizes, 4);
+  assert.ok(fs.existsSync(path.join(store.root, 'config.json.migrated')));
+  login('111', 'ana'); login(null);
+  login('222', 'bob');
+  assert.equal(g.config.prizes, 3, 'el segundo streamer parte de los valores por defecto');
+});
+
 test('el historial se escribe en la carpeta del streamer dueño del evento', async () => {
   const { g, store, login } = withStore();
   login('111', 'ana'); g.saveConfig({ ...FAST, prizes: 1 });
