@@ -135,14 +135,22 @@ class TwitchAuth extends EventEmitter {
   /* ---------- Helix ---------- */
   /** logins → Map(login en minúsculas → {id, login, displayName}). Los inexistentes no aparecen. */
   async resolveLogins(logins) {
+    const pages = [];                                       // Helix admite hasta 100 logins por consulta: las páginas van en paralelo
+    for (let i = 0; i < logins.length; i += HELIX_USERS_PAGE) pages.push(logins.slice(i, i + HELIX_USERS_PAGE));
+    const results = await Promise.all(pages.map(page => this.fetchUsers(page)));
     const out = new Map();
-    for (let i = 0; i < logins.length; i += HELIX_USERS_PAGE) {
-      const q = new URLSearchParams(); logins.slice(i, i + HELIX_USERS_PAGE).forEach(l => q.append('login', l));
-      const res = await this.api('GET', `${HELIX}/users?${q}`);
-      if (!res.ok) throw new Error(`Helix /users: HTTP ${res.status}`);
-      for (const u of (await res.json()).data || []) out.set(u.login.toLowerCase(), { id: u.id, login: u.login, displayName: u.display_name });
+    for (const users of results) {
+      for (const u of users) out.set(u.login.toLowerCase(), { id: u.id, login: u.login, displayName: u.display_name });
     }
     return out;
+  }
+  /** Una consulta a /users (≤ 100 logins): devuelve la lista de usuarios existentes. */
+  async fetchUsers(page) {
+    const q = new URLSearchParams();
+    page.forEach(l => q.append('login', l));
+    const res = await this.api('GET', `${HELIX}/users?${q}`);
+    if (!res.ok) throw new Error(`Helix /users: HTTP ${res.status}`);
+    return (await res.json()).data || [];
   }
   /** Suscripción al chat del canal para una sesión EventSub. Lanza si Twitch no responde 202. */
   async subscribeChat(broadcasterId, userId, sessionId) {

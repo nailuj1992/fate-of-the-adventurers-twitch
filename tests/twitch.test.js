@@ -151,6 +151,24 @@ test('resolveLogins consulta Helix con varios login y devuelve ID y nombre visib
   tw.logout();
 });
 
+test('resolveLogins con más de 100 logins: una consulta por página de 100, resultados juntos y un fallo en cualquiera rechaza', async () => {
+  const { tw } = make(); await tw.init();
+  const seen = [];
+  tw.auth.fetch = async url => {
+    const u = String(url);
+    if (!u.includes('/helix/users')) return { ok: true, status: 200, json: async () => ({ scopes: ['user:read:chat'], user_id: '100', login: 'streamer' }) };
+    const logins = new URL(u).searchParams.getAll('login'); seen.push(logins.length);
+    if (logins.includes('l250')) return { ok: false, status: 500, json: async () => ({}) };
+    return { ok: true, status: 200, json: async () => ({ data: logins.map(l => ({ id: 'id' + l, login: l, display_name: l.toUpperCase() })) }) };
+  };
+  const names = Array.from({ length: 230 }, (_, i) => 'l' + i);
+  const m = await tw.resolveLogins(names);
+  assert.deepEqual(seen, [100, 100, 30]); assert.equal(m.size, 230); assert.equal(m.get('l229').displayName, 'L229');
+  assert.deepEqual([...m.keys()].slice(0, 3), ['l0', 'l1', 'l2'], 'el orden de las páginas se conserva');
+  await assert.rejects(tw.resolveLogins([...names, 'l250']), /Helix \/users: HTTP 500/);
+  tw.logout();
+});
+
 test('cuenta: "identity" se emite solo cuando cambia la cuenta (renovar la misma no avisa; cerrar sesión avisa con null)', async () => {
   const { tw, state } = make();
   const seen = []; tw.on('identity', u => seen.push(u && u.id));
