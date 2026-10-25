@@ -27,6 +27,13 @@ Decisions and defects handled during the architectural refactoring. Behavior cha
 ## Dead code removed (phase 6, one commit each)
 `fmtTime` and `wait` (`ui/util.js`, never referenced), and the CSS variables `--jade-dark` and `--navy` (declared, never read with `var()`). Earlier: `Engine.busy`, `handleCallback`/`BusyError`/`canChangeAccount`, the `historyFile` option of `Game`.
 
+## Cleanup (phase 7)
+- Magic numbers got names: `SEEN_CHAT_MAX`, `HISTORY_VIEW_MAX` (`core.js`), `LOW_TIME_MS`, `MAX_CHIPS`, `TOAST_MS`, `UI_TICK_MS` (`ui/util.js`). Values unchanged.
+- `server.openSession` removed (no code or test used it).
+- `StreamerStore.loadConfig` no longer migrates legacy data behind the scenes: `Game.setOwner` calls `migrateLegacy` explicitly.
+- `Game` console errors use the `[game]` prefix and `forLog`.
+- READMEs: structure, test count and (manual) the list of files that must travel with `index.html` brought up to date; `docs/ARCHITECTURE.md` added.
+
 ## Notes
 - `server.js` no longer reads `.env` when imported; only the entry point does.
 - `twitch.js` lost `handleCallback`, `BusyError` and `canChangeAccount` (unused: sign-in goes through `Tenants.login`).
