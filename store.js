@@ -2,7 +2,8 @@
 /**
  * Datos por streamer: cada cuenta de Twitch (identificada por su ID numérico, que no cambia aunque cambie el nombre)
  * tiene su propia carpeta  data/streamers/<id>/  con su configuración y su historial. Así dos cuentas nunca comparten
- * ni pisan parámetros. Sin credenciales: los tokens siguen en data/tokens.json (una sola sesión a la vez).
+ * ni pisan parámetros. Los tokens de Twitch de cada cuenta viven en su misma carpeta (tokens.json, modo 0600); este módulo
+ * solo da su ruta y su fecha: leerlos y escribirlos es cosa de twitch/auth.js.
  */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -19,6 +20,20 @@ class StreamerStore {
   configFile(id) { return path.join(this.dir(id), 'config.json'); }
   tokenFile(id) { return path.join(this.dir(id), 'tokens.json'); }   // tokens de Twitch de ESA cuenta (0600)
   historyFile(id) { return path.join(this.dir(id), 'historial.jsonl'); }
+
+  /** IDs de los streamers que tienen carpeta (nombres que no son un ID de Twitch se ignoran). */
+  savedStreamerIds() {
+    try { return fs.readdirSync(path.join(this.root, 'streamers')).filter(name => ID_RE.test(name)); } catch { return []; }
+  }
+  /** Hora de modificación (ms) de los tokens guardados del streamer, o null si no tiene. */
+  tokenMtime(id) {
+    try { return fs.statSync(this.tokenFile(id)).mtimeMs; } catch { return null; }
+  }
+  /** Añade una línea (JSON) al historial del streamer. Lanza si no puede escribir: quien llama decide qué hacer. */
+  appendHistory(id, record) {
+    fs.mkdirSync(this.dir(id), { recursive: true });
+    fs.appendFileSync(this.historyFile(id), JSON.stringify(record) + '\n');
+  }
 
   /** Configuración guardada del streamer ({} si no tiene o está dañada: se usarán los valores por defecto). */
   loadConfig(id) {
