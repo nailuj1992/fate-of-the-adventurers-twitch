@@ -103,11 +103,29 @@
        intro → countdown → rolling → reveal → confirming → [won | absent] → transition → intro …
      Todas las fases pasan por UN solo programador (schedule) que cancela la anterior: no puede haber temporizadores duplicados.
      ===================================================================== */
-  const LIVE = ['reveal', 'confirming', 'paused', 'verifying'];            // estados en los que se escucha el chat
+  const LIVE = ['reveal', 'confirming', 'paused', 'verifying'];            // estados en los que se escucha el chat (y corre el reloj del candidato)
+  const REVEALED = [...LIVE, 'won', 'absent', 'deserted'];                 // estados en los que el nombre del candidato ya puede viajar a la interfaz
   const SKIPPABLE = ['intro', 'won', 'absent', 'transition', 'deserted'];  // esperas que el presentador puede saltar
   const ok = () => ({ ok: true });
   // Los errores viajan como código + parámetros (la interfaz los traduce: err.<código>); `error` lleva el texto en inglés por si hiciera falta.
   const err = (code, params = {}) => ({ ok: false, errorKey: 'err.' + code, errorParams: params, error: I18n.tIn('en', 'err.' + code, params) });
+
+  /**
+   * ÚNICA definición del estado del evento: lo usan resetState (valores iniciales) y snapshot/restore (qué se guarda).
+   * Añadir un campo aquí basta para que se reinicie y sobreviva a un F5; `ms` (derivado de cfg) y `ph` (se guarda aparte) no se persisten.
+   */
+  const freshState = () => ({
+    screen: 'admin', status: 'idle', round: 0, prizes: 0, cfg: null, ms: null,
+    participants: [],     // [{name, key, userId?}] lista completa, fija durante el evento
+    winners: [],          // [{name, key, round, prize, source, at}]  round = ronda donde ganó; prize = premio que se lleva
+    absent: [],           // [{name, key, round, reason, at}]  ausencias: excluyen SOLO de esa ronda (en Xuen: de toda la ronda)
+    disqualified: [],     // [{name, key, round, reason, at}]  descalificación global
+    deserted: [],         // índices de rondas principales declaradas desiertas
+    xuen: { total: 0 },   // premios pendientes con los que arrancó la recuperación
+    outcome: null, history: [], cur: null, final: null, rollNames: [], ph: null, step: null, replacement: false,
+    eventId: null, seq: 0,
+  });
+  const PERSISTED = Object.keys(freshState()).filter(k => k !== 'ms' && k !== 'ph');
 
   class Engine {
     /**
@@ -132,17 +150,7 @@
 
     resetState() {
       if (this.ph) { this.o.clearT(this.ph.handle); }
-      Object.assign(this, {
-        screen: 'admin', status: 'idle', round: 0, prizes: 0, cfg: null, ms: null,
-        participants: [],     // [{name, key, userId?}] lista completa, fija durante el evento
-        winners: [],          // [{name, key, round, prize, source, at}]  round = ronda donde ganó; prize = premio que se lleva
-        absent: [],           // [{name, key, round, reason, at}]  ausencias: excluyen SOLO de esa ronda (en Xuen: de toda la ronda)
-        disqualified: [],     // [{name, key, round, reason, at}]  descalificación global
-        deserted: [],         // índices de rondas principales declaradas desiertas
-        xuen: { total: 0 },   // premios pendientes con los que arrancó la recuperación
-        outcome: null, history: [], cur: null, final: null, rollNames: [], ph: null, step: null, replacement: false,
-        eventId: null, seq: 0,
-      });
+      Object.assign(this, freshState());
     }
 
     /* ---------- utilidades ---------- */
@@ -331,7 +339,6 @@
     /* ---------- fin de ronda ---------- */
     // Sin elegibles: una ronda principal se declara desierta (su premio pasa a recuperación); en Xuen, candidatos agotados.
     desertRound() {
-      this.busy = false;
       if (this.round >= this.prizes) this.log('des', 'xuen_exhausted', { count: this.pendingPrizes().length });
       else {
         this.deserted.push(this.round);
@@ -374,7 +381,7 @@
       this.clearPhase(); this.final = kind; this.screen = 'final'; this.status = 'idle'; this.step = null;
       const open = this.pendingPrizes();
       const lines = this.winners.slice().sort((x, y) => x.prize - y.prize)
-        .map(w => `#${w.prize + 1} (${CELESTIALS[w.prize % 3].name})=${w.name}${w.round >= this.prizes ? ' [Xuen]' : ''}`);
+        .map(w => `#${w.prize + 1} (${CELESTIALS[w.prize % CELESTIALS.length].name})=${w.name}${w.round >= this.prizes ? ' [Xuen]' : ''}`);
       const openList = open.map(i => '#' + (i + 1)).join(', ');
       if (kind === 'complete') this.log('sys', 'finish_complete');
       else if (kind === 'incomplete') this.log('sys', 'finish_incomplete', { winners: this.winners.length, prizes: this.prizes, count: open.length });
@@ -434,83 +441,18 @@
     }
 
     /* ---------- vista pública (lo único que consume la interfaz) ---------- */
-    view() {
-      const c = this.cur, st = this.status, now = this.o.now(), ph = this.ph, stage = this.screen === 'stage';
-      const revealed = c && ['reveal', 'confirming', 'paused', 'verifying', 'won', 'absent', 'deserted'].includes(st);
-      const pending = this.pendingPrizes(), x = this.round >= this.prizes;
-      const cel = this.celestial();
-      // estado de cada premio
-      const finished = this.screen === 'final';
-      const prizeStates = Array.from({ length: this.prizes }, (_, i) => {
-        const w = this.winners.find(v => v.prize === i), c0 = CELESTIALS[i % CELESTIALS.length];
-        let state;
-        if (w) state = w.round >= this.prizes ? 'recovered' : 'delivered';
-        else if (this.deserted.includes(i)) state = finished ? 'unassigned' : 'in_recovery';
-        else if (finished) state = 'unassigned';
-        else if (!x && i === this.round) state = 'in_progress';
-        else state = 'pending';
-        return { prize: i + 1, celestial: c0.name, celIndex: c0.index, state, winner: w ? w.name : null, via: w ? (w.round >= this.prizes ? 'xuen' : 'main') : null };
-      });
-      // aviso de candidatos insuficientes
-      let notice = null;
-      if (stage && !x) {
-        const resolved = st === 'won' || st === 'deserted' ? this.round + 1 : this.round;
-        const people = this.participants.filter(p => !this.winners.some(w => w.key === p.key) && !this.disqualified.some(d => d.key === p.key)).length;
-        if (this.prizes - resolved > 0 && people < this.prizes - resolved)
-          notice = { key: 'notice.rounds', params: { people, count: this.prizes - resolved } };
-      } else if (stage && x && st !== 'won' && st !== 'deserted') {
-        const avail = this.eligible(this.prizes).length + (c && !c.settled ? 1 : 0);
-        if (avail < pending.length) notice = { key: 'notice.xuen', params: { people: avail, count: pending.length } };
-      }
-      const timerOn = c && ['reveal', 'confirming', 'paused', 'verifying'].includes(st);
-      const next = st === 'transition' && this.step ? (this.step.type === 'round'
-        ? { kind: 'round', round: this.step.round, prize: this.step.round + 1, celestial: roundCelestial(this.step.round, this.prizes) }
-        : this.step.type === 'xuen' ? { kind: 'xuen', celestial: XUEN }
-        : { kind: 'xuen-next', celestial: XUEN, prize: pending[0] + 1 }) : null;
-      return {
-        serverNow: now, screen: this.screen, status: st, round: this.round, prizes: this.prizes,
-        celestial: cel, prize: stage && (x ? pending[0] : this.round) != null ? (x ? pending[0] : this.round) + 1 : null,   // premio en juego (1-based)
-        phase: ph ? { name: ph.name, total: ph.total, paused: ph.paused, endsAt: ph.paused ? null : ph.endsAt,
-                      remaining: ph.paused ? ph.remaining : Math.max(0, ph.endsAt - now) } : null,
-        rollNames: st === 'rolling' ? this.rollNames : [],
-        candidate: revealed ? c.name : null,           // el nombre no se envía hasta la revelación
-        timer: timerOn ? {
-          total: c.total, closing: !!(ph && ph.name === 'closing'), grace: !!c.grace, paused: st === 'paused', started: st !== 'reveal',
-          deadline: st === 'confirming' && ph && !ph.paused ? ph.endsAt : null,
-          remaining: st === 'reveal' ? c.total : st === 'verifying' ? 0 : ph ? (ph.paused ? ph.remaining : Math.max(0, ph.endsAt - now)) : 0,
-        } : null,
-        flowPaused: !!(ph && ph.paused),
-        next,
-        xuen: { active: x && stage, total: this.xuen.total, remaining: pending.length, recovered: this.winners.filter(w => w.round >= this.prizes).length },
-        prizeStates,
-        winners: this.winners, absent: this.absent, disqualified: this.disqualified, deserted: this.deserted, outcome: this.outcome,
-        counts: {
-          eligible: stage ? this.eligible().length : 0, winners: this.winners.length, disqualified: this.disqualified.length,
-          desertedRounds: this.deserted.length, absentEvents: this.absent.length, absentPeople: new Set(this.absent.map(a => a.key)).size,
-          prizesPending: stage || finished ? pending.length : 0,
-          prizesDelivered: this.winners.filter(w => w.round < this.prizes).length,
-          prizesRecovered: this.winners.filter(w => w.round >= this.prizes).length,
-        },
-        history: this.history.slice(-300), final: this.final, notice,
-        skippable: !!(ph && !ph.paused && SKIPPABLE.includes(ph.name)),
-      };
-    }
+    view() { return buildView(this); }
 
     /* ---------- persistencia (versión manual: sobrevivir a un F5) ---------- */
     snapshot() {
-      return JSON.parse(JSON.stringify({ v: 1, screen: this.screen, status: this.status, round: this.round, prizes: this.prizes, cfg: this.cfg,
-        participants: this.participants, winners: this.winners, absent: this.absent, disqualified: this.disqualified, deserted: this.deserted,
-        xuen: this.xuen, outcome: this.outcome, history: this.history, cur: this.cur, final: this.final, rollNames: this.rollNames,
-        step: this.step, replacement: this.replacement, eventId: this.eventId, seq: this.seq,
-        ph: this.ph ? { name: this.ph.name, total: this.ph.total, endsAt: this.ph.endsAt, remaining: this.ph.remaining, paused: this.ph.paused } : null }));
+      const ph = this.ph && { name: this.ph.name, total: this.ph.total, endsAt: this.ph.endsAt, remaining: this.ph.remaining, paused: this.ph.paused };
+      return JSON.parse(JSON.stringify({ v: 1, ...Object.fromEntries(PERSISTED.map(k => [k, this[k]])), ph: ph || null }));
     }
     restore(s) {
       if (!s || s.v !== 1) return false;
       this.resetState(); this.seenChat.clear();
-      Object.assign(this, { screen: s.screen, status: s.status, round: s.round, prizes: s.prizes, cfg: s.cfg, ms: s.cfg ? toMs(s.cfg) : null,
-        participants: s.participants, winners: s.winners, absent: s.absent, disqualified: s.disqualified, deserted: s.deserted, xuen: s.xuen,
-        outcome: s.outcome, history: s.history, cur: s.cur, final: s.final, rollNames: s.rollNames || [], step: s.step,
-        replacement: !!s.replacement, eventId: s.eventId, seq: s.seq });
+      Object.assign(this, Object.fromEntries(PERSISTED.map(k => [k, s[k]])),
+        { ms: s.cfg ? toMs(s.cfg) : null, rollNames: s.rollNames || [], replacement: !!s.replacement });
       if (s.ph) {
         const ph = { name: s.ph.name, total: s.ph.total, endsAt: s.ph.endsAt, remaining: s.ph.remaining, paused: !!s.ph.paused, handle: null };
         this.ph = ph;
@@ -520,5 +462,71 @@
     }
   }
 
-  return { DEFAULT_CONFIG, LIMITS, CONFIG_KEYS, MAX_PRIZES, validateConfig, toMs, CELESTIALS, XUEN, roundCelestial, preview, secureIndex, secureShuffle, Engine, LIVE };
+  /**
+   * Proyección de PRESENTACIÓN del estado (lo único que consume la interfaz): función pura de lectura sobre el motor.
+   * No modifica nada; el nombre del candidato solo sale cuando ya está revelado.
+   */
+  function buildView(e) {
+    const c = e.cur, st = e.status, now = e.o.now(), ph = e.ph, stage = e.screen === 'stage';
+    const revealed = c && REVEALED.includes(st);
+    const pending = e.pendingPrizes(), x = e.round >= e.prizes;
+    const cel = e.celestial();
+    // estado de cada premio
+    const finished = e.screen === 'final';
+    const prizeStates = Array.from({ length: e.prizes }, (_, i) => {
+      const w = e.winners.find(v => v.prize === i), c0 = CELESTIALS[i % CELESTIALS.length];
+      let state;
+      if (w) state = w.round >= e.prizes ? 'recovered' : 'delivered';
+      else if (e.deserted.includes(i)) state = finished ? 'unassigned' : 'in_recovery';
+      else if (finished) state = 'unassigned';
+      else if (!x && i === e.round) state = 'in_progress';
+      else state = 'pending';
+      return { prize: i + 1, celestial: c0.name, celIndex: c0.index, state, winner: w ? w.name : null, via: w ? (w.round >= e.prizes ? 'xuen' : 'main') : null };
+    });
+    // aviso de candidatos insuficientes
+    let notice = null;
+    if (stage && !x) {
+      const resolved = st === 'won' || st === 'deserted' ? e.round + 1 : e.round;
+      const people = e.participants.filter(p => !e.winners.some(w => w.key === p.key) && !e.disqualified.some(d => d.key === p.key)).length;
+      if (e.prizes - resolved > 0 && people < e.prizes - resolved)
+        notice = { key: 'notice.rounds', params: { people, count: e.prizes - resolved } };
+    } else if (stage && x && st !== 'won' && st !== 'deserted') {
+      const avail = e.eligible(e.prizes).length + (c && !c.settled ? 1 : 0);
+      if (avail < pending.length) notice = { key: 'notice.xuen', params: { people: avail, count: pending.length } };
+    }
+    const timerOn = c && LIVE.includes(st);
+    const next = st === 'transition' && e.step ? (e.step.type === 'round'
+      ? { kind: 'round', round: e.step.round, prize: e.step.round + 1, celestial: roundCelestial(e.step.round, e.prizes) }
+      : e.step.type === 'xuen' ? { kind: 'xuen', celestial: XUEN }
+      : { kind: 'xuen-next', celestial: XUEN, prize: pending[0] + 1 }) : null;
+    return {
+      serverNow: now, screen: e.screen, status: st, round: e.round, prizes: e.prizes,
+      celestial: cel, prize: stage && (x ? pending[0] : e.round) != null ? (x ? pending[0] : e.round) + 1 : null,   // premio en juego (1-based)
+      phase: ph ? { name: ph.name, total: ph.total, paused: ph.paused, endsAt: ph.paused ? null : ph.endsAt,
+                    remaining: ph.paused ? ph.remaining : Math.max(0, ph.endsAt - now) } : null,
+      rollNames: st === 'rolling' ? e.rollNames : [],
+      candidate: revealed ? c.name : null,           // el nombre no se envía hasta la revelación
+      timer: timerOn ? {
+        total: c.total, closing: !!(ph && ph.name === 'closing'), grace: !!c.grace, paused: st === 'paused', started: st !== 'reveal',
+        deadline: st === 'confirming' && ph && !ph.paused ? ph.endsAt : null,
+        remaining: st === 'reveal' ? c.total : st === 'verifying' ? 0 : ph ? (ph.paused ? ph.remaining : Math.max(0, ph.endsAt - now)) : 0,
+      } : null,
+      flowPaused: !!(ph && ph.paused),
+      next,
+      xuen: { active: x && stage, total: e.xuen.total, remaining: pending.length, recovered: e.winners.filter(w => w.round >= e.prizes).length },
+      prizeStates,
+      winners: e.winners, absent: e.absent, disqualified: e.disqualified, deserted: e.deserted, outcome: e.outcome,
+      counts: {
+        eligible: stage ? e.eligible().length : 0, winners: e.winners.length, disqualified: e.disqualified.length,
+        desertedRounds: e.deserted.length, absentEvents: e.absent.length, absentPeople: new Set(e.absent.map(a => a.key)).size,
+        prizesPending: stage || finished ? pending.length : 0,
+        prizesDelivered: e.winners.filter(w => w.round < e.prizes).length,
+        prizesRecovered: e.winners.filter(w => w.round >= e.prizes).length,
+      },
+      history: e.history.slice(-300), final: e.final, notice,
+      skippable: !!(ph && !ph.paused && SKIPPABLE.includes(ph.name)),
+    };
+  }
+
+  return { DEFAULT_CONFIG, LIMITS, CONFIG_KEYS, MAX_PRIZES, validateConfig, toMs, CELESTIALS, XUEN, roundCelestial, preview, secureIndex, secureShuffle, Engine, LIVE, ok, err };
 });

@@ -8,12 +8,11 @@ const EventEmitter = require('node:events');
 const fs = require('node:fs');
 const path = require('node:path');
 const Core = require('./core');
-const I18n = require('./i18n');
 
 const LOGIN_RE = /^[A-Za-z0-9_]{1,25}$/;
-const ok = () => ({ ok: true });
-// Errores como código + parámetros: la interfaz los traduce (err.<código>); `error` lleva el texto en inglés.
-const err = (code, params = {}, extra = {}) => ({ ok: false, errorKey: 'err.' + code, errorParams: params, error: I18n.tIn('en', 'err.' + code, params), ...extra });
+const { ok } = Core;
+// Errores como los del motor (código + parámetros, ver Core.err) más datos extra, p. ej. el detalle por campo de una configuración inválida.
+const err = (code, params = {}, extra = {}) => ({ ...Core.err(code, params), ...extra });
 
 class Game extends EventEmitter {
   /**
