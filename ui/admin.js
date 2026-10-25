@@ -9,7 +9,8 @@
    ===================================================================== */
 const normKey = s => s.normalize('NFC').toLocaleLowerCase(I18n.locale);
 const cleanLine = s => { const x = s.replace(/\s+/g,' ').trim(); return NAMES_ARE_TWITCH_LOGINS ? x.replace(/^@/,'') : x; };
-const LOGIN_RE = /^[A-Za-z0-9_]{1,25}$/;
+const LOGIN_RE = /^\w{1,25}$/;                      // \w = [A-Za-z0-9_] (sin la bandera u)
+let serverErr = null;                                // resultado fallido al intentar iniciar ({errorKey, errorParams, errors}); se traduce al pintar
 
 function analyze(){
   const lines = namesEl.value.split(/\r?\n/), valid = [], seen = new Map(), bad = []; let empty = 0;
@@ -38,7 +39,7 @@ const cfgHelp = k => t(MODE === 'manual' && I18n.has('cfg.help.' + k + '_manual'
 function buildCfgFields(){
   const mk = k => {
     const [lo, hi] = Core.LIMITS[k], unit = k === 'prizes' ? '' : ' s';
-    const tip = cfgHelp(k).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    const tip = cfgHelp(k).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;');
     return `<label class="cfg-row"><span>${cfgLabel(k)} <small>(${lo}–${hi}${unit})</small> <i class="help" tabindex="0" role="note" data-tip="${tip}">?</i></span>` +
       `<input type="number" inputmode="numeric" step="1" min="${lo}" max="${hi}" data-k="${k}" id="cfg_${k}"><em data-e="${k}"></em></label>`;
   };
@@ -98,12 +99,12 @@ function renderAdmin(){
   if (a.valid.length < need) add(t('admin.problems.need', { need, have: a.valid.length }));
   if (!cfgCheck.ok) add(t('admin.problems.cfgErrors'));
   if (NAMES_ARE_TWITCH_LOGINS && tw && tw.status !== 'connected') add(t('admin.problems.connect'));
-  if (!a.bad.length && !a.dups.length && a.valid.length >= need && cfgCheck.ok && (!NAMES_ARE_TWITCH_LOGINS || (tw && tw.status === 'connected')))
+  if (!a.bad.length && !a.dups.length && a.valid.length >= need && cfgCheck.ok && (!NAMES_ARE_TWITCH_LOGINS || tw?.status === 'connected'))
     add(t('admin.problems.ok', { count: a.valid.length, prizes: cfgCheck.config.prizes }) + (NAMES_ARE_TWITCH_LOGINS ? ' ' + t('admin.problems.okTwitch') : ''), true);
   const dupKeys = new Set(a.dups.map(d => normKey(d.name)));
   const chips = $('chips'); chips.innerHTML = '';
   a.valid.slice(0,200).forEach(v => { const c = document.createElement('span'); c.className = 'chip' + (dupKeys.has(v.key) ? ' dup' : ''); c.textContent = v.name; chips.appendChild(c); });
-  const blocked = locked || a.bad.length > 0 || a.dups.length > 0 || a.valid.length < need || !cfgCheck.ok || (NAMES_ARE_TWITCH_LOGINS && (!tw || tw.status !== 'connected'));
+  const blocked = locked || a.bad.length > 0 || a.dups.length > 0 || a.valid.length < need || !cfgCheck.ok || (NAMES_ARE_TWITCH_LOGINS && tw?.status !== 'connected');
   $('btnStart').disabled = blocked; $('btnStart2').disabled = blocked;
 }
 function renderCfgIfVisible(){ if (!$('paneC').classList.contains('hide')) renderCfg(); else { const c = analyze().valid.length; cfgCheck = Core.validateConfig(cfgDraft, c > 0 ? c : undefined); } }

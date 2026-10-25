@@ -44,8 +44,10 @@ function secureIndex(n){
 }
 function play(name){
   const src = SOUNDS[name]; if (!src) return;
-  try { const a = new Audio(src); a.play().catch(()=>{}); } catch(e){}
+  try { const a = new Audio(src); a.play().catch(()=>{}); } catch(e){ /* el sonido es opcional: sin audio disponible o con un archivo inválido simplemente no suena */ }
 }
+// Fuerza al navegador a recalcular el diseño (para poder reiniciar una animación CSS quitando y volviendo a poner su clase o estilo).
+const forceReflow = el => el.getBoundingClientRect();
 const fmtTime = d => d.toLocaleTimeString('es-ES');
 
 /* =====================================================================

@@ -13,17 +13,18 @@ const COLORS = ['#e3b956','#f6e2a6','#3fbf9a','#9fd8ff'];
 const XUEN_COLORS = ['#8fdcff','#ffffff','#a77bff','#5fd0ff'];     // azul eléctrico, blanco y violeta
 const pickColor = () => { const p = frame.classList.contains('xuen') ? XUEN_COLORS : COLORS; return p[secureIndex(p.length)]; };
 function fit(){ cv.width = frame.clientWidth; cv.height = frame.clientHeight; }
-function spawn(x,y,vx,vy,life,size,col,glow){ parts.push({x,y,vx,vy,life,max:life,size,col,glow}); }
+// p = {x, y, vx, vy, life, size, col, glow}; `max` conserva la vida inicial para calcular el desvanecimiento.
+function spawn(p){ parts.push({ ...p, max: p.life }); }
 function ambient(){
   const ambientCount = parts.filter(p => !p.glow).length;
   if (ambientCount < AMBIENT_PARTICLES && randFloat() < .3)
-    spawn(randFloat()*cv.width, cv.height+10, (randFloat()-.5)*.4, -(.3+randFloat()*.7), 500+randFloat()*400, 1+randFloat()*2.5, pickColor(), false);
+    spawn({ x: randFloat()*cv.width, y: cv.height+10, vx: (randFloat()-.5)*.4, vy: -(.3+randFloat()*.7), life: 500+randFloat()*400, size: 1+randFloat()*2.5, col: pickColor(), glow: false });
 }
 function burst(n){
   const x = cv.width/2, y = cv.height*.45;
   for (let i = 0; i < n; i++){
     const a = randFloat()*Math.PI*2, v = 2+randFloat()*7;
-    spawn(x, y, Math.cos(a)*v, Math.sin(a)*v - 1.5, 70+randFloat()*70, 2+randFloat()*3.5, pickColor(), true);
+    spawn({ x, y, vx: Math.cos(a)*v, vy: Math.sin(a)*v - 1.5, life: 70+randFloat()*70, size: 2+randFloat()*3.5, col: pickColor(), glow: true });
   }
 }
 function loop(){
@@ -41,5 +42,5 @@ function loop(){
 function startFx(){
   window.addEventListener('resize', fit); fit();
   loop();
-  if (SOUNDS.ambient){ try { const a = new Audio(SOUNDS.ambient); a.loop = true; document.addEventListener('click', () => a.play().catch(()=>{}), {once:true}); } catch(e){} }
+  if (SOUNDS.ambient){ try { const a = new Audio(SOUNDS.ambient); a.loop = true; document.addEventListener('click', () => a.play().catch(()=>{}), {once:true}); } catch(e){ /* sonido opcional: sin audio disponible no suena */ } }
 }

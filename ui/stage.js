@@ -8,7 +8,6 @@
    RENDER
    ===================================================================== */
 function showScreen(id){ ['admin','stage','final'].forEach(s => $(s).classList.toggle('active', s === id)); }
-const TIMED = ['reveal','confirming','paused','verifying'];
 const VIS = {
   idle:['idle'], intro:['idle'], transition:['trans'], countdown:['count'], rolling:['name'],
   reveal:['name','ask','timer'], confirming:['name','ask','timer'], paused:['name','ask','timer'], verifying:['name','ask','timer'],
@@ -40,6 +39,15 @@ function render(){
   $('stage').dataset.status = s;
   $('stage').dataset.flow = S.flowPaused ? 'paused' : '';
   $('stage').style.setProperty('--stage-glow', info.glow);
+  renderStageHead(cel, info, xuen);
+  renderTransitionNotice();
+  renderStageMessages(s, xuen, info);
+  renderStageControls(s);
+  renderCounters();
+  if (S.timer) drawTimer(Date.now() + offset);
+}
+// Cabecera del escenario: número de premio, nombre y título del Celestial, citas y medallones.
+function renderStageHead(cel, info, xuen){
   $('stageNum').textContent = xuen ? t('story.xuen.kicker') : t('stage.prizeOf', { prize: S.prize, prizes: S.prizes });
   $('stageName').textContent = xuen ? t('story.xuen.heading') : info.long;     // nombre completo del Celestial
   $('introName').textContent = xuen ? info.long : '';      // en las rondas principales el nombre completo ya está en la cabecera; Xuen lo muestra aquí
@@ -49,39 +57,67 @@ function render(){
   $('quote').textContent = quoted(info.intro);
   $('emblemLg').innerHTML = EMBLEMS[cel.index] || '';
   $('emblemSm').innerHTML = EMBLEMS[cel.index] || '';
-  // aviso de transición: qué viene a continuación
-  if (S.next){
-    const nx = S.next, ni = celInfo(nx.celestial.index);
-    $('emblemNext').innerHTML = EMBLEMS[nx.celestial.index] || '';
-    $('transMsg').textContent = nx.kind === 'round' ? t('stage.next.round', { prize: nx.prize, prizes: S.prizes, celestial: ni.long })
-      : nx.kind === 'xuen' ? t('stage.next.xuen', { heading: t('story.xuen.heading') }) : t('stage.next.xuenNext', { prize: nx.prize });
-    $('transSub').textContent = quoted(ni.intro);
-  }
-  const lastWin = S.winners[S.winners.length - 1], nm = { name: S.candidate || '' };
-  $('winMsg').textContent = s === 'won' && lastWin
-    ? info.victory.replace('{name}', S.candidate) + ' ' + t(xuen ? 'stage.won.xuen' : 'stage.won.main', { prize: lastWin.prize + 1 }) : '';
-  const absentMsg = t(S.outcome === 'disqualified' ? 'stage.disq' : xuen ? 'stage.absentXuen' : 'stage.absent', nm);
-  $('goneMsg').textContent = s === 'absent' ? absentMsg
-    : s === 'deserted' ? (S.candidate ? absentMsg + ' ' : '') + t(xuen ? 'stage.desertedXuen' : 'stage.deserted') : '';
-  const grace = s === 'confirming' && S.timer && S.timer.grace;
+}
+// Texto de la transición entre rondas según lo que viene a continuación.
+function nextRoundText(nx, ni){
+  if (nx.kind === 'round') return t('stage.next.round', { prize: nx.prize, prizes: S.prizes, celestial: ni.long });
+  if (nx.kind === 'xuen') return t('stage.next.xuen', { heading: t('story.xuen.heading') });
+  return t('stage.next.xuenNext', { prize: nx.prize });
+}
+// aviso de transición: qué viene a continuación
+function renderTransitionNotice(){
+  if (!S.next) return;
+  const nx = S.next, ni = celInfo(nx.celestial.index);
+  $('emblemNext').innerHTML = EMBLEMS[nx.celestial.index] || '';
+  $('transMsg').textContent = nextRoundText(nx, ni);
+  $('transSub').textContent = quoted(ni.intro);
+}
+function wonText(s, xuen, info){
+  const lastWin = S.winners[S.winners.length - 1];
+  if (s !== 'won' || !lastWin) return '';
+  return info.victory.replace('{name}', S.candidate) + ' ' + t(xuen ? 'stage.won.xuen' : 'stage.won.main', { prize: lastWin.prize + 1 });
+}
+function absentKey(xuen){
+  if (S.outcome === 'disqualified') return 'stage.disq';
+  return xuen ? 'stage.absentXuen' : 'stage.absent';
+}
+// Mensaje de ausencia/descalificación (y, si la ronda queda desierta, el aviso de ronda desierta).
+function goneText(s, xuen){
+  const absentMsg = t(absentKey(xuen), { name: S.candidate || '' });
+  if (s === 'absent') return absentMsg;
+  if (s !== 'deserted') return '';
+  return (S.candidate ? absentMsg + ' ' : '') + t(xuen ? 'stage.desertedXuen' : 'stage.deserted');
+}
+function renderStageMessages(s, xuen, info){
+  $('winMsg').textContent = wonText(s, xuen, info);
+  $('goneMsg').textContent = goneText(s, xuen);
+  const grace = s === 'confirming' && S.timer?.grace;
   const vm = $('verifyMsg');
   vm.classList.toggle('hide', !(s === 'verifying' || grace));
   vm.textContent = t(s === 'verifying' ? 'stage.verifying' : 'stage.grace');
+}
+function pauseLabelKey(s){
+  if (S.flowPaused) return 'stage.btn.resume';
+  return TIMED.has(s) ? 'stage.btn.pauseTimer' : 'stage.btn.pauseEvent';
+}
+// Qué bloques y botones se ven en cada fase, etiqueta del botón de pausa y aviso de candidatos insuficientes.
+function renderStageControls(s){
   const vis = VIS[s] || [];
   document.querySelectorAll('#stage [data-v]').forEach(el => el.classList.toggle('hide', !vis.includes(el.dataset.v)));
   $('emblemSm').classList.toggle('hide', s === 'idle' || s === 'intro' || s === 'countdown' || s === 'transition');
   const btns = BTNS[s] || [];
   ['btnConfirm','btnPause','btnDisq','btnSkip'].forEach(id => $(id).classList.toggle('hide', !btns.includes(id)));
-  if (S.timer && S.timer.closing) $('btnPause').classList.add('hide');
+  if (S.timer?.closing) $('btnPause').classList.add('hide');
   if (!S.skippable) $('btnSkip').classList.add('hide');
-  $('btnPause').textContent = t(S.flowPaused ? 'stage.btn.resume' : TIMED.includes(s) ? 'stage.btn.pauseTimer' : 'stage.btn.pauseEvent');
+  $('btnPause').textContent = t(pauseLabelKey(s));
   const n = $('notice'); n.classList.toggle('hide', !S.notice); if (S.notice) n.textContent = t(S.notice.key, S.notice.params);
+}
+function renderCounters(){
   const c = S.counts;
   $('cPool').textContent = c.eligible; $('cWin').textContent = `${c.winners}/${S.prizes}`;
   $('cAbs').textContent = c.absentEvents;                       // eventos de ausencia (una persona puede sumar varios)
   $('cAbsP').textContent = t('ops.people', { count: c.absentPeople });
   $('cExtra').textContent = t('ops.extra', { delivered: c.prizesDelivered, recovered: c.prizesRecovered, pending: c.prizesPending, dq: c.disqualified, deserted: c.desertedRounds });
-  if (S.timer) drawTimer(Date.now() + offset);
 }
 function renderHistory(){
   const ul = $('history'); ul.innerHTML = '';
@@ -94,13 +130,17 @@ function renderHistory(){
     li.append(document.createTextNode(h.key ? t('log.' + h.key, h.params) : h.text)); ul.appendChild(li);   // se traduce al idioma activo
   });
 }
+const FINAL_TITLE_KEY = { complete: 'final.ok', incomplete: 'final.incomplete' };    // cualquier otro resultado = cancelado
+function finalSubText(k, open){
+  if (k === 'complete') return t('final.subOk');
+  if (k === 'incomplete') return t('final.subIncomplete', { list: open });
+  return t('final.subCancelled') + (open ? ' ' + t('final.subCancelledOpen', { list: open }) : '');
+}
 function renderFinal(){
   const k = S.final, ps = S.prizeStates;
-  $('finalTitle').textContent = t(k === 'complete' ? 'final.ok' : k === 'incomplete' ? 'final.incomplete' : 'final.cancelled');
+  $('finalTitle').textContent = t(FINAL_TITLE_KEY[k] || 'final.cancelled');
   const open = ps.filter(p => p.state !== 'delivered' && p.state !== 'recovered').map(p => '#' + p.prize).join(', ');
-  $('finalSub').textContent = k === 'complete' ? t('final.subOk')
-    : k === 'incomplete' ? t('final.subIncomplete', { list: open })
-    : t('final.subCancelled') + (open ? ' ' + t('final.subCancelledOpen', { list: open }) : '');
+  $('finalSub').textContent = finalSubText(k, open);
   const box = $('finalWinners'); box.innerHTML = '';
   box.classList.toggle('dense', ps.length > 3);
   ps.forEach(p => {
@@ -146,7 +186,7 @@ $('btnPause').onclick    = () => api('pause');
 $('btnSkip').onclick     = () => api('skip');
 // Descalificación GLOBAL: confirmación + motivo obligatorio. (La ausencia por tiempo es automática y solo afecta a la ronda actual.)
 $('btnDisq').onclick     = async () => {
-  if (!S || !S.candidate) return;
+  if (!S?.candidate) return;
   const reason = await askReason(t('modal.dq', { name: S.candidate }));
   if (reason) api('disqualify', { reason });
 };
@@ -154,7 +194,7 @@ $('btnCancel').onclick   = async () => { if (await ask(t('modal.cancel'))) api('
 $('btnReset').onclick    = async () => { if (await ask(t('modal.reset'))) api('reset'); };
 $('btnBack').onclick     = () => api('back');          // solo se permite al terminar el evento
 $('btnTwLogin').onclick  = () => { location.href = '/auth/login'; };
-$('btnTwLogout').onclick = async () => { if (await ask(t('modal.logout'))) fetch('/auth/logout', { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' }); };
+$('btnTwLogout').onclick = async () => { if (await ask(t('modal.logout'))) await fetch('/auth/logout', { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' }); };
 
 function setPres(on){ document.body.classList.toggle('pres', on); }
 $('btnPres').onclick = () => setPres(true);
