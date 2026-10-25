@@ -2,30 +2,9 @@
 // Pruebas del núcleo compartido con un RELOJ SIMULADO: los tiempos se avanzan a mano, sin esperas reales.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const Core = require('../core');
+const { makeClock } = require('./helpers');   // reloj simulado compartido con contract.test.js
 
-/* ---------- reloj simulado ---------- */
-function makeClock() {
-  let t = 1_000_000, id = 0; const q = new Map();
-  return {
-    now: () => t,
-    setT: (f, ms) => { const i = ++id; q.set(i, { at: t + ms, f }); return i; },
-    clearT: i => q.delete(i),
-    get active() { return q.size; },
-    advance(ms) {
-      const end = t + ms;
-      for (;;) {
-        let best = null;
-        for (const [i, e] of q) if (e.at <= end && (!best || e.at < best.e.at)) best = { i, e };
-        if (!best) break;
-        q.delete(best.i); t = Math.max(t, best.e.at); best.e.f();
-      }
-      t = end;
-    },
-  };
-}
 const CFG = { ...Core.DEFAULT_CONFIG };       // tiempos por defecto reales (5/8/5/120/8/5/5/8)
 const NAMES = ['ana', 'bob', 'carla', 'diego', 'elena', 'fran', 'gus', 'hugo', 'ivan', 'jose', 'kike', 'luis'];
 const people = (n = 5) => NAMES.slice(0, n).map(k => ({ name: k[0].toUpperCase() + k.slice(1), key: k, userId: 'id_' + k }));
