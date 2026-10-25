@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Fate of the Adventurers: The Trial of the Celestials</title>
+<!-- Fuentes opcionales (si no hay internet se usan las de respaldo: Georgia / serif) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   PERSONALIZACIÓN · COLORES, FUENTES Y FONDO
+   ===================================================================== */
+:root{
+  --gold:#e3b956;          /* dorado de bordes y títulos */
+  --gold-soft:#f6e2a6;     /* dorado claro para textos destacados */
+  --gold-dark:#8a6a24;
+  --jade:#3fbf9a;          /* acento jade */
+  --jade-dark:#1d6b5a;
+  --night:#0a1226;         /* azul noche */
+  --navy:#13213f;          /* azul de paneles */
+  --parchment:#efe0b8;     /* pergamino */
+  --ink:#2b1d0c;           /* tinta sobre pergamino */
+  --danger:#e0594a;
+  --font-title:'Cinzel Decorative','Cinzel',Georgia,serif;
+  --font-head:'Cinzel',Georgia,serif;
+  --font-body:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+  /* Fondo propio: pon aquí una imagen, p. ej. url('fondo.jpg'). Se dibuja bajo la niebla. */
+  --bg-image:none;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#03050b;overflow:hidden;color:var(--gold-soft);font-family:var(--font-body)}
+body{display:grid;place-items:center}
+button{font-family:var(--font-head);cursor:pointer}
+.hide{display:none!important}
+
+/* Marco 16:9 que se adapta a cualquier ventana / pantalla completa / OBS */
+.frame{
+  --u:min(1vw,1.7778vh);              /* 1u = 1% del ancho del marco */
+  width:calc(var(--u)*100);height:calc(var(--u)*56.25);
+  position:relative;overflow:hidden;font-size:var(--u);
+  background:radial-gradient(ellipse at 50% 20%,#27406e 0%,#13213f 45%,#070d1c 100%);
+}
+
+/* ---------- Fondo: montañas, templo, niebla ---------- */
+.bg{position:absolute;inset:0;background:var(--bg-image) center/cover no-repeat}
+.bg svg{position:absolute;left:0;bottom:0;width:100%;height:100%}
+.fog{position:absolute;left:-50%;width:200%;height:40%;opacity:.35;pointer-events:none;
+  background:radial-gradient(ellipse at 30% 50%,rgba(220,235,240,.55),transparent 60%),
+             radial-gradient(ellipse at 70% 50%,rgba(220,235,240,.45),transparent 60%);
+  animation:drift 60s linear infinite}
+.fog.f1{bottom:8%}
+.fog.f2{bottom:22%;opacity:.22;animation-duration:90s;animation-direction:reverse}
+@keyframes drift{from{transform:translateX(0)}to{transform:translateX(25%)}}
+#fx{position:absolute;inset:0;pointer-events:none;z-index:5}
+.vignette{position:absolute;inset:0;pointer-events:none;z-index:4;
+  background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%)}
+
+/* ---------- Barra superior ---------- */
+.topbar{position:absolute;top:1.2em;left:2em;right:2em;display:flex;justify-content:space-between;align-items:center;z-index:20}
+.brand{font-family:var(--font-head);font-size:calc(var(--u)*1.25);letter-spacing:.15em;color:var(--gold);text-transform:uppercase;opacity:.85}
+.pres-hotspot{position:absolute;top:0;right:0;width:8em;height:5em;z-index:40}
+body:not(.pres) .pres-hotspot{display:none}
+.pres-hotspot button{opacity:0;transition:.3s}
+.pres-hotspot:hover button{opacity:.9}
+
+/* ---------- Botones ---------- */
+.btn{
+  font-size:calc(var(--u)*1.35);letter-spacing:.08em;padding:.7em 1.6em;color:var(--gold-soft);
+  background:linear-gradient(#1f3a6e,#10213f);border:calc(var(--u)*.14) solid var(--gold);border-radius:.5em;
+  box-shadow:0 0 0 calc(var(--u)*.14) #0004,0 .4em 1em #0008, inset 0 0 1em #0006;transition:.2s;
+}
+.btn:hover:not(:disabled){filter:brightness(1.25);transform:translateY(-.1em)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.big{font-size:calc(var(--u)*2);padding:.8em 2em}
+.btn.jade{background:linear-gradient(#2a9d80,#14574a)}
+.btn.warn{background:linear-gradient(#8a2f27,#4a1612);border-color:#e08a7c}
+.btn.small{font-size:calc(var(--u)*1);padding:.5em 1em}
+.btn.ghost{background:#0006}
+
+/* ---------- Pantallas ---------- */
+.screen{position:absolute;inset:0;z-index:10;padding:4.5em 3em 2em;display:none}
+.screen.active{display:flex}
+.parchment{
+  background:linear-gradient(135deg,#f3e6c3,#e2cd96);color:var(--ink);border:calc(var(--u)*.25) solid var(--gold);
+  border-radius:.8em;box-shadow:0 0 0 calc(var(--u)*.2) var(--gold-dark),0 1em 3em #000a, inset 0 0 4em #8a5a1a55;
+}
+.panel{background:linear-gradient(#162a52ee,#0b1630ee);border:calc(var(--u)*.2) solid var(--gold);border-radius:.8em;
+  box-shadow:0 0 2em #000a, inset 0 0 2em #0008}
+
+/* ---------- ADMIN ---------- */
+#admin{flex-direction:column;align-items:center}
+#admin h1{font-family:var(--font-title);font-size:calc(var(--u)*3.2);margin:0;color:var(--gold);text-align:center;text-shadow:0 0 1em #e3b95688,0 .1em .2em #000}
+#admin h2{font-family:var(--font-head);font-size:calc(var(--u)*1.7);margin:.2em 0 1em;color:var(--jade);letter-spacing:.2em;text-transform:uppercase;font-weight:500}
+.admin-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:2em;width:100%;flex:1;min-height:0}
+.admin-col{padding:1.2em 1.5em;display:flex;flex-direction:column;min-height:0}
+.admin-col h3{margin:0 0 .5em;font-family:var(--font-head);font-size:calc(var(--u)*1.4);color:var(--gold)}
+#names{flex:1;min-height:0;resize:none;width:100%;font:500 calc(var(--u)*1.5)/1.35 var(--font-body);padding:.7em;color:var(--ink);
+  background:#fbf3da;border:calc(var(--u)*.12) solid var(--gold-dark);border-radius:.4em}
+#names:disabled{opacity:.6}
+.row{display:flex;gap:.8em;flex-wrap:wrap;margin-top:.8em;align-items:center}
+.stats{display:flex;gap:1.2em;font-family:var(--font-head);font-size:calc(var(--u)*1.2)}
+.stats b{color:var(--gold-soft);font-size:calc(var(--u)*1.8)}
+.stats span.bad b{color:var(--danger)}
+#problems{flex:1;overflow:auto;font-size:calc(var(--u)*1.3);line-height:1.35}
+.problem{padding:.5em .8em;border-left:calc(var(--u)*.3) solid var(--danger);background:#e0594a22;margin-bottom:.5em;border-radius:.2em}
+.problem.ok{border-color:var(--jade);background:#3fbf9a22}
+.chips{display:flex;flex-wrap:wrap;gap:.35em;margin-top:.6em;overflow:auto;max-height:12em}
+.chip{font-size:calc(var(--u)*1);padding:.15em .6em;border-radius:1em;background:#ffffff14;border:1px solid #e3b95666}
+.chip.dup{background:#e0594a44;border-color:var(--danger)}
+
+/* ---------- ESCENARIO ---------- */
+#stage{gap:1.5em}
+.arena{flex:1;display:grid;grid-template-rows:auto 1fr auto;min-width:0;position:relative}
+.stage-head{display:flex;align-items:center;gap:1.2em;justify-content:center;min-height:9em}
+.stage-head .emblem-sm{width:8em;height:8em}
+.stage-head .txt{text-align:left}
+#stageNum{font-family:var(--font-head);letter-spacing:.3em;color:var(--jade);font-size:calc(var(--u)*1.3);text-transform:uppercase}
+#stageName{font-family:var(--font-title);font-size:calc(var(--u)*3.4);margin:0;color:var(--gold);line-height:1.05;text-shadow:0 0 .8em var(--stage-glow,#e3b95688)}
+#stageTitle{font-family:var(--font-head);font-weight:500;font-size:calc(var(--u)*1.7);margin:.1em 0 0;color:var(--gold-soft);letter-spacing:.12em}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:0;position:relative}
+.emblem-lg{width:19em;height:19em;animation:float 6s ease-in-out infinite;filter:drop-shadow(0 0 1.5em var(--stage-glow,#e3b956aa))}
+@keyframes float{50%{transform:translateY(-.8em)}}
+.quote{max-width:42em;font-size:calc(var(--u)*2.3);font-style:italic;line-height:1.3;color:var(--gold-soft);margin:.6em 0 0;text-shadow:0 .1em .3em #000}
+.count{font-family:var(--font-title);font-size:calc(var(--u)*17);color:var(--gold);text-shadow:0 0 .5em var(--gold);animation:pop 1s ease-out infinite}
+@keyframes pop{0%{transform:scale(1.6);opacity:0}25%{opacity:1}100%{transform:scale(.9);opacity:.8}}
+.cand{font-family:var(--font-title);color:#fff;line-height:1.05;word-break:break-word;max-width:92%;
+  text-shadow:0 0 .35em var(--gold),0 0 1em var(--gold),0 .08em .15em #000}
+.cand.rolling{filter:blur(.04em);opacity:.85;color:var(--gold-soft)}
+.cand.revealed{animation:reveal 1.4s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes reveal{0%{transform:scale(.2);opacity:0;filter:blur(1em)}60%{transform:scale(1.15);filter:blur(0)}100%{transform:scale(1);opacity:1}}
+.cand.gone{color:#8c8f99;text-shadow:none;text-decoration:line-through;text-decoration-color:var(--danger);animation:fade 1.6s ease-out both}
+@keyframes fade{0%{transform:scale(1.05);filter:brightness(2) blur(.1em)}100%{transform:scale(.9);filter:brightness(.7)}}
+.rays{position:absolute;width:60em;height:60em;left:50%;top:50%;margin:-30em 0 0 -30em;opacity:0;pointer-events:none;
+  background:repeating-conic-gradient(from 0deg,#e3b95644 0 6deg,transparent 6deg 18deg);
+  -webkit-mask:radial-gradient(circle,#000 0,transparent 65%);mask:radial-gradient(circle,#000 0,transparent 65%)}
+.rays.on{opacity:1;animation:spin 24s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.msg{max-width:46em;font-size:calc(var(--u)*2);line-height:1.3;margin-top:.6em;color:var(--gold-soft);text-shadow:0 .1em .2em #000}
+.msg.ask{font-weight:700;font-size:calc(var(--u)*2.2)}
+.msg.win{color:var(--jade);font-weight:700}
+.msg.lose{color:#c9a9a3}
+.timerbox{position:relative;width:11em;height:11em;margin-top:.8em}
+.timerbox svg{width:100%;height:100%;transform:rotate(-90deg)}
+.timerbox circle{fill:#0009;stroke-width:8}
+#ringBg{stroke:#ffffff22}
+#ringFg{stroke:var(--jade);stroke-linecap:round;transition:stroke .3s}
+.timerbox.low #ringFg{stroke:var(--danger)}
+.timerbox.low #timeText{color:var(--danger);animation:beat 1s infinite}
+@keyframes beat{50%{transform:translate(-50%,-50%) scale(1.12)}}
+#timeText{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:var(--font-head);font-size:calc(var(--u)*3);color:#fff;font-weight:700}
+.paused-badge{position:absolute;left:0;right:0;top:0;display:none;justify-content:center;z-index:6;pointer-events:none}
+#stage[data-flow="paused"] .paused-badge{display:flex}
+.paused-badge div{background:#000c;border:calc(var(--u)*.25) solid var(--danger);color:#fff;padding:.5em 1.4em;border-radius:.5em;font-family:var(--font-head);
+  font-size:calc(var(--u)*3);letter-spacing:.2em;animation:blink 1.4s infinite;text-align:center}
+.paused-badge small{display:block;font-size:calc(var(--u)*1.2);letter-spacing:.1em;color:var(--gold-soft)}
+@keyframes blink{50%{opacity:.55}}
+#stage[data-flow="paused"] .timerbox{opacity:.45}
+#notice{position:absolute;left:50%;transform:translateX(-50%);top:0;background:#7a4a10ee;border:calc(var(--u)*.14) solid var(--gold);padding:.4em 1.2em;
+  border-radius:.4em;font-size:calc(var(--u)*1.3);z-index:7;max-width:90%;text-align:center;pointer-events:none}
+.dock{position:relative;z-index:9;display:flex;justify-content:center;gap:1em;min-height:4.5em;align-items:center;flex-wrap:wrap}
+body.pres .dock{opacity:0;transition:.4s}
+body.pres .dock:hover,body.pres .dock:focus-within{opacity:1}
+
+/* ---------- Panel del presentador ---------- */
+.ops{width:22em;padding:1em 1.2em;display:flex;flex-direction:column;min-height:0;font-size:calc(var(--u)*1.1)}
+body.pres .ops,body.pres .topbar .ctl{display:none}
+.ops h3{margin:0 0 .4em;font-family:var(--font-head);color:var(--gold);font-size:calc(var(--u)*1.3);letter-spacing:.1em}
+.counters{display:grid;grid-template-columns:repeat(3,1fr);gap:.4em;text-align:center;margin-bottom:.8em}
+.counters div{background:#0006;border-radius:.4em;padding:.3em;font-family:var(--font-head);font-size:calc(var(--u)*.9)}
+.counters b{display:block;font-size:calc(var(--u)*2);color:var(--gold-soft)}
+#history{flex:1;overflow:auto;list-style:none;margin:0;padding:0;font-size:calc(var(--u)*1.05);line-height:1.25}
+#history li{padding:.35em .2em;border-bottom:1px solid #e3b95622}
+#history time{color:var(--gold-dark);font-size:.85em;margin-right:.4em}
+#history li.t-conf{color:var(--jade)} #history li.t-aus{color:#e8a094} #history li.t-sys{color:#9fb3d9}
+#history li.t-dq{color:#ffb15c;font-weight:700} #history li.t-des{color:#c9b9ff}
+.counters small{display:block;font-size:.85em;opacity:.8;font-family:var(--font-body);font-weight:500}
+.counters-extra{font-size:calc(var(--u)*.95);text-align:center;margin:-.4em 0 .7em;opacity:.9}
+#modalInput{width:100%;font:inherit;font-size:calc(var(--u)*1.5);padding:.4em .6em;margin:-.4em 0 1em;border-radius:.3em;border:1px solid var(--gold-dark);background:#fbf3da;color:var(--ink)}
+.ops-btns{display:flex;flex-direction:column;gap:.5em;margin-top:.8em}
+
+/* ---------- Twitch / avisos ---------- */
+.tw{margin-top:.8em;padding:.6em .8em;background:#0006;border-radius:.4em;font-size:calc(var(--u)*1.1)}
+.tw-state{display:flex;align-items:center;gap:.5em;font-family:var(--font-head);font-size:calc(var(--u)*1);line-height:1.25}
+.dot{flex:none;width:.9em;height:.9em;border-radius:50%;background:#777}
+.dot.on{background:var(--jade);box-shadow:0 0 .6em var(--jade)}.dot.wait{background:#e3b956;animation:blink 1s infinite}.dot.err{background:var(--danger)}
+.msg.verify{font-size:calc(var(--u)*1.5);color:#ffd27a;font-weight:700}
+#toast{position:absolute;left:50%;transform:translateX(-50%);top:4em;z-index:70;background:#7a1f18f0;border:calc(var(--u)*.14) solid #e08a7c;padding:.5em 1.2em;border-radius:.4em;font-size:calc(var(--u)*1.3);max-width:80%;text-align:center}
+.emb{display:block;width:100%;height:100%;object-fit:cover;border-radius:50%;border:calc(var(--u)*.25) solid var(--gold);box-shadow:0 0 0 calc(var(--u)*.12) var(--gold-dark),0 .3em 1em #000a}
+/* ---------- Xuen — La fuerza (ronda extraordinaria): azul eléctrico, blanco y violeta ---------- */
+.frame.xuen{--gold:#8fdcff;--gold-soft:#eaf7ff;--gold-dark:#4a63b8;--jade:#a77bff;--jade-dark:#5b3fb0;--navy:#1a1850;--night:#0d0a2e;
+  background:radial-gradient(ellipse at 50% 20%,#4a2f9a 0%,#241a66 45%,#0b0828 100%)}
+.frame.xuen .rays{background:repeating-conic-gradient(from 0deg,#8fdcff44 0 6deg,transparent 6deg 18deg)}
+.frame.xuen #stageName{font-size:calc(var(--u)*2.9)}
+.xuen-codes{margin-top:.3em;font-family:var(--font-head);font-size:calc(var(--u)*1.35);color:#fff;letter-spacing:.08em;text-shadow:0 0 .6em #8fdcff}
+.xuen-fx{position:absolute;inset:0;z-index:3;pointer-events:none;display:none}
+.frame.xuen .xuen-fx{display:block}
+.xuen-fx::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,#a77bff33,transparent 60%),radial-gradient(ellipse at 20% 80%,#5fd0ff22,transparent 50%)}
+.xuen-fx svg{position:absolute;inset:0;width:100%;height:100%}
+.bolt{fill:none;stroke:#eaf7ff;stroke-width:3;stroke-linejoin:round;stroke-linecap:round;filter:drop-shadow(0 0 6px #8fdcff) drop-shadow(0 0 14px #a77bff);opacity:0;animation:zap 5s infinite}
+.bolt.b2{animation-delay:1.7s;animation-duration:6.5s}.bolt.b3{animation-delay:3.1s;animation-duration:4.2s}.bolt.b4{animation-delay:.8s;animation-duration:7.3s}
+@keyframes zap{0%,86%,100%{opacity:0}88%{opacity:1}90%{opacity:.2}92%{opacity:.95}95%{opacity:0}}
+.xuen-flash{position:absolute;inset:0;z-index:30;pointer-events:none;background:#eaf7ff;opacity:0}
+.xuen-flash.go{animation:xflash 1.1s ease-out}
+@keyframes xflash{0%{opacity:.9}100%{opacity:0}}
+#history li.t-xuen{color:#8fdcff;font-weight:700}
+.wcard .tag{display:inline-block;margin:.2em 0 .3em;padding:.1em .7em;border-radius:1em;background:linear-gradient(90deg,#2f6bff,#8a4dff);color:#fff;font-family:var(--font-head);font-size:calc(var(--u)*.95);letter-spacing:.08em}
+/* ---------- Configuración del sorteo ---------- */
+.tabs{display:flex;gap:.6em;margin:-.4em 0 .6em;align-self:flex-start}
+.tab{font-size:calc(var(--u)*1.3);padding:.4em 1.4em;color:var(--gold-soft);background:#0008;border:calc(var(--u)*.14) solid var(--gold-dark);border-radius:.5em}
+.tab.on{background:linear-gradient(#1f3a6e,#10213f);border-color:var(--gold)}
+.cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:.35em 1.2em}
+.cfg-row{display:flex;flex-direction:column;font-size:calc(var(--u)*1.05)}
+.cfg-row span{color:var(--gold-soft)} .cfg-row small{opacity:.7}
+.cfg-row input{font:inherit;font-size:calc(var(--u)*1.35);padding:.2em .5em;border-radius:.3em;border:1px solid var(--gold-dark);background:#fbf3da;color:var(--ink);width:100%}
+.cfg-row input.bad{outline:2px solid var(--danger)}
+.cfg-row em{color:#ff9d8f;font-style:normal;font-size:.9em;min-height:1.1em}
+#admin details.adv{margin-top:.4em;font-size:calc(var(--u)*1.1)} #admin details.adv summary{cursor:pointer;color:var(--gold)}
+#cfgPreview{margin:0;padding:0;list-style:none;overflow:auto;flex:1;min-height:0;font-size:calc(var(--u)*1.25)}
+#cfgPreview li{padding:.2em .5em;border-bottom:1px solid #e3b95622;display:flex;gap:.6em}
+#cfgPreview li b{color:var(--gold-soft);min-width:5.5em} #cfgPreview li.xrow{opacity:.85;color:#8fdcff}
+#cfgMsg{font-size:calc(var(--u)*1.1);color:var(--jade)} #cfgDirty{font-size:calc(var(--u)*1.05);color:#ffd27a}
+.timer-note{margin-top:.4em;font-size:calc(var(--u)*1.1);color:var(--gold-soft);opacity:.85}
+.htag{display:inline-block;margin-right:.4em;padding:0 .4em;border-radius:.6em;background:#ffffff1a;font-size:.85em;color:var(--gold-soft)}
+.winners.dense{flex-wrap:wrap;justify-content:center;gap:.7em;max-width:96%;max-height:62%;overflow:auto}
+.winners.dense .wcard{width:18em;padding:.5em .6em}
+.winners.dense .emblem-sm{display:none}
+.winners.dense .deity{font-size:calc(var(--u)*1.15)} .winners.dense .trial{font-size:calc(var(--u)*.95);margin:0} .winners.dense .wname{font-size:calc(var(--u)*1.7)}
+.manual .tw,.manual .tw-state{display:none!important}
+.celestial-long:empty{display:none}
+.celestial-long{margin:.5em 0 0;font-family:var(--font-title);font-size:calc(var(--u)*2.6);color:var(--gold);text-shadow:0 0 .8em var(--stage-glow,#e3b95688),0 .1em .2em #000;text-align:center}
+.ctl{display:flex;gap:.8em;align-items:center}
+.langsw{display:inline-flex;border:calc(var(--u)*.14) solid var(--gold-dark);border-radius:.5em;overflow:hidden}
+.langsw button{font-family:var(--font-head);font-size:calc(var(--u)*1);padding:.45em .8em;color:var(--gold-soft);background:#0008;border:0;cursor:pointer}
+.langsw button.on{background:linear-gradient(#1f3a6e,#10213f);color:#fff;box-shadow:inset 0 -.2em 0 var(--gold)}
+.help{position:relative;display:inline-block;width:1.35em;height:1.35em;line-height:1.3em;text-align:center;border-radius:50%;background:#e3b95622;border:1px solid var(--gold);color:var(--gold-soft);font-style:normal;font-size:.85em;cursor:help;margin-left:.25em;vertical-align:middle}
+.help:hover,.help:focus{background:var(--gold);color:var(--night);outline:none}
+.help::after{content:attr(data-tip);display:none;position:absolute;left:-1em;bottom:150%;width:calc(var(--u)*26);padding:.6em .8em;text-align:left;white-space:normal;
+  background:#0b1630;border:calc(var(--u)*.14) solid var(--gold);border-radius:.4em;color:var(--gold-soft);box-shadow:0 .4em 1.2em #000c;
+  font-family:var(--font-body);font-weight:500;font-size:calc(var(--u)*1.1);line-height:1.3;z-index:60;pointer-events:none}
+.help:hover::after,.help:focus::after{display:block}
+/* El panel de configuración crece con su contenido (p. ej. con «Avanzado» abierto) y la pantalla de administración hace scroll: nada se solapa. */
+#admin{overflow-y:auto}
+#paneC{flex:0 0 auto;min-height:auto}
+#paneC .admin-col{min-height:auto}
+#paneC #cfgPreview{min-height:8em;max-height:26em}
+.cfg-row:nth-child(even) .help::after{left:auto;right:-1em}
+/* ---------- FINAL ---------- */
+#final{flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1em}
+#final h1{font-family:var(--font-title);font-size:calc(var(--u)*3.6);color:var(--gold);margin:0;text-shadow:0 0 .6em #e3b95699}
+#final .sub{font-size:calc(var(--u)*1.7);color:var(--gold-soft);font-style:italic;margin:0}
+.winners{display:flex;gap:2em;margin:1em 0}
+.wcard{width:26em;padding:1.2em 1em 1.4em;text-align:center;animation:rise 1s both}
+.wcard:nth-child(2){animation-delay:.4s}.wcard:nth-child(3){animation-delay:.8s}
+@keyframes rise{from{transform:translateY(3em);opacity:0}}
+.wcard .emblem-sm{width:7em;height:7em;margin:0 auto}
+.wcard .deity{font-family:var(--font-head);font-size:calc(var(--u)*1.5);color:#6b3f0a;margin:.3em 0 0;font-weight:700}
+.wcard .trial{font-size:calc(var(--u)*1.3);color:#5a4220;margin:0 0 .5em;font-style:italic}
+.wcard .wname{font-family:var(--font-title);font-weight:700;font-size:calc(var(--u)*2.6);color:#1a2a52;word-break:break-word;line-height:1.1}
+.wcard.empty{opacity:.55}
+.wcard.empty .wname{font-size:calc(var(--u)*1.6);color:#6b5a3a}
+
+/* ---------- Modal ---------- */
+#modal{position:absolute;inset:0;z-index:60;background:#000b;display:none;align-items:center;justify-content:center}
+#modal.on{display:flex}
+#modal .box{max-width:42em;padding:2em 2.4em;text-align:center}
+#modal p{font-size:calc(var(--u)*1.9);margin:0 0 1.2em;line-height:1.3}
+#modal .row{justify-content:center}
+</style>
+</head>
+<body>
+<div class="frame" id="frame">
+
+  <!-- ===== FONDO: montañas, templo pandaren, niebla ===== -->
+  <div class="bg">
+    <svg viewBox="0 0 1600 900" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="m1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2d4a78"/><stop offset="1" stop-color="#14264a"/></linearGradient>
+        <linearGradient id="m2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c3560"/><stop offset="1" stop-color="#0c1830"/></linearGradient>
+        <linearGradient id="m3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0f2a33"/><stop offset="1" stop-color="#050c12"/></linearGradient>
+      </defs>
+      <circle cx="1180" cy="190" r="90" fill="#f6e2a6" opacity=".18"/>
+      <polygon points="0,620 120,440 230,560 360,330 520,570 660,430 800,600 960,380 1120,580 1280,420 1440,590 1600,470 1600,900 0,900" fill="url(#m1)" opacity=".9"/>
+      <polygon points="0,700 150,540 300,650 470,480 640,680 820,520 1000,690 1180,500 1360,680 1500,560 1600,640 1600,900 0,900" fill="url(#m2)"/>
+      <!-- templo pagoda -->
+      <g fill="#0a1a2a" opacity=".95" transform="translate(1180,300)">
+        <rect x="-26" y="150" width="52" height="60"/>
+        <path d="M-70 150 Q0 130 70 150 L52 126 L-52 126Z"/>
+        <rect x="-20" y="96" width="40" height="30"/>
+        <path d="M-58 96 Q0 78 58 96 L42 76 L-42 76Z"/>
+        <rect x="-14" y="48" width="28" height="28"/>
+        <path d="M-46 48 Q0 32 46 48 L32 30 L-32 30Z"/>
+        <rect x="-3" y="-10" width="6" height="40"/>
+      </g>
+      <polygon points="0,780 200,690 380,760 600,670 820,770 1040,690 1240,775 1440,700 1600,760 1600,900 0,900" fill="url(#m3)"/>
+    </svg>
+    <div class="fog f2"></div>
+    <div class="fog f1"></div>
+  </div>
+  <div class="xuen-fx" aria-hidden="true"><svg viewBox="0 0 1600 900" preserveAspectRatio="none">
+    <polyline class="bolt" points="260,0 230,140 290,170 210,330 270,360 190,520"/>
+    <polyline class="bolt b2" points="1320,0 1360,120 1300,160 1380,300 1330,340 1400,480"/>
+    <polyline class="bolt b3" points="700,0 680,90 730,120 690,210"/>
+    <polyline class="bolt b4" points="1500,200 1460,300 1510,330 1450,430 1490,470"/>
+  </svg></div>
+  <div class="xuen-flash" id="xuenFlash"></div>
+  <canvas id="fx"></canvas>
+  <div class="vignette"></div>
+
+  <!-- ===== BARRA SUPERIOR ===== -->
+  <div class="topbar">
+    <div class="brand" data-i18n="app.brand">The Fate of the Adventurers</div>
+    <div class="ctl">
+      <span class="langsw" role="group" data-i18n-attr="aria-label:app.language" aria-label="Language">
+        <button type="button" data-lang="en">EN</button><button type="button" data-lang="es">ES</button>
+      </span>
+      <button class="btn small ghost" id="btnPres" data-i18n="app.presentation" data-i18n-attr="title:app.presentationHint" title="Shortcut: P key">Presentation mode (P)</button>
+    </div>
+  </div>
+  <div class="pres-hotspot"><button class="btn small ghost" id="btnPresExit" data-i18n="app.exit">Exit (Esc)</button></div>
+
+  <!-- ===== SCREEN 1: ADMINISTRATION ===== -->
+  <section id="admin" class="screen active">
+    <h1 data-i18n="app.brand">The Fate of the Adventurers</h1>
+    <h2 data-i18n="app.subtitle">The Trial of the Celestials</h2>
+    <div class="tabs"><button class="tab on" data-tab="people" data-i18n="admin.tabs.people">Participants</button><button class="tab" data-tab="config" data-i18n="admin.tabs.config">Settings</button></div>
+    <div class="admin-grid" id="paneP">
+      <div class="admin-col panel">
+        <h3 data-i18n="admin.people.heading">Participant registry</h3>
+        <textarea id="names" spellcheck="false" data-i18n-attr="placeholder:admin.people.placeholder" placeholder="Paste the names here, one per line…"></textarea>
+        <div class="row">
+          <button class="btn small" id="btnClean" data-i18n="admin.people.clean">Trim spaces and empty lines</button>
+          <button class="btn small" id="btnDedupe" data-i18n="admin.people.dedupe">Remove duplicates</button>
+        </div>
+        <div class="tw">
+          <div class="tw-state"><span class="dot" id="twDotA"></span><span id="twTextA">Twitch: …</span></div>
+          <div class="row" style="margin-top:.5em">
+            <button class="btn small jade" id="btnTwLogin" data-i18n="twitch.connect">Connect with Twitch</button>
+            <button class="btn small ghost hide" id="btnTwLogout" data-i18n="twitch.logout">Sign out of Twitch</button>
+          </div>
+          <div style="opacity:.8;margin-top:.4em" data-i18n="admin.people.twitchNote">The names in the list must be Twitch users.</div>
+        </div>
+      </div>
+      <div class="admin-col panel">
+        <h3 data-i18n="admin.validation.heading">Validation</h3>
+        <div class="stats">
+          <span><span data-i18n="admin.validation.valid">Valid</span> <b id="stValid">0</b></span>
+          <span class="bad" id="stDupWrap"><span data-i18n="admin.validation.dup">Duplicates</span> <b id="stDup">0</b></span>
+          <span><span data-i18n="admin.validation.empty">Empty</span> <b id="stEmpty">0</b></span>
+        </div>
+        <div id="problems" style="margin-top:.8em"></div>
+        <div class="chips" id="chips"></div>
+        <div class="row">
+          <button class="btn big jade" id="btnStart" disabled data-i18n="admin.start">Start draw</button>
+        </div>
+      </div>
+    </div>
+    <!-- Settings panel: locked once the event starts -->
+    <div class="admin-grid hide" id="paneC">
+      <div class="admin-col panel">
+        <h3 data-i18n="cfg.heading">Prizes and timings</h3>
+        <div class="cfg-grid" id="cfgMain"></div>
+        <details class="adv"><summary data-i18n="cfg.advanced">Advanced</summary><div class="cfg-grid" id="cfgAdv"></div></details>
+        <div class="row">
+          <button class="btn small ghost" id="cfgRestore" data-i18n="cfg.restore">Restore defaults</button>
+          <button class="btn small" id="cfgSave" data-i18n="cfg.save">Save settings</button>
+          <span id="cfgDirty" class="hide" data-i18n="cfg.dirty">● unsaved changes</span><span id="cfgMsg"></span>
+        </div>
+      </div>
+      <div class="admin-col panel">
+        <h3 data-i18n="cfg.previewHeading">Order of the Celestials</h3>
+        <ol id="cfgPreview"></ol>
+        <div class="row"><button class="btn big jade" id="btnStart2" disabled data-i18n="admin.start">Start draw</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SCREEN 2: THE ROUNDS ===== -->
+  <section id="stage" class="screen" data-status="idle">
+    <div class="arena">
+      <div class="stage-head">
+        <div class="emblem-sm" id="emblemSm" data-v="name"></div>
+        <div class="txt">
+          <div id="stageNum"></div>
+          <h2 id="stageName"></h2>
+          <h3 id="stageTitle"></h3>
+          <div id="xuenCodes" class="xuen-codes hide"></div>
+        </div>
+      </div>
+
+      <div class="center">
+        <div class="rays" id="rays"></div>
+        <!-- start of a round -->
+        <div data-v="idle" style="display:flex;flex-direction:column;align-items:center">
+          <div class="emblem-lg" id="emblemLg"></div>
+          <p class="celestial-long" id="introName"></p>
+          <p class="quote" id="quote"></p>
+        </div>
+        <!-- transition between rounds -->
+        <div data-v="trans" style="display:flex;flex-direction:column;align-items:center">
+          <div class="emblem-lg" id="emblemNext"></div>
+          <p class="quote" id="transMsg" style="font-style:normal;font-weight:700"></p>
+          <p class="quote" id="transSub" style="font-size:calc(var(--u)*1.6);margin-top:.2em"></p>
+        </div>
+        <!-- countdown -->
+        <div data-v="count" class="count" id="countNum"></div>
+        <!-- name -->
+        <div data-v="name" style="display:flex;flex-direction:column;align-items:center;width:100%">
+          <div class="cand" id="candName"></div>
+          <div class="msg ask" data-v="ask" data-i18n="stage.ask">The Celestials have chosen you! Write something in the stream chat to claim your reward</div>
+          <div class="msg verify hide" id="verifyMsg"></div>
+          <div class="msg win" data-v="win" id="winMsg"></div>
+          <div class="msg lose" data-v="gone" id="goneMsg"></div>
+          <div class="timerbox" data-v="timer" id="timerBox">
+            <svg viewBox="0 0 100 100"><circle id="ringBg" cx="50" cy="50" r="44"/><circle id="ringFg" cx="50" cy="50" r="44" fill="none"/></svg>
+            <div id="timeText">2:00</div>
+          </div>
+          <div class="timer-note hide" id="timerNote" data-i18n="stage.timerNote">Listening to the chat · the time limit starts when the reveal ends</div>
+        </div>
+        <div class="paused-badge"><div><span data-i18n="stage.pausedTitle">⏸ EVENT PAUSED</span><small data-i18n="stage.pausedSub">Solving a technical problem…</small></div></div>
+      </div>
+
+      <div class="dock">
+        <button class="btn big jade" id="btnConfirm" data-i18n="stage.btn.confirm">Confirm presence</button>
+        <button class="btn" id="btnPause" data-i18n="stage.btn.pauseEvent">Pause</button>
+        <button class="btn" id="btnSkip" data-i18n="stage.btn.skip">Skip wait</button>
+        <button class="btn warn" id="btnDisq" data-i18n="stage.btn.disq">Disqualify from the draw</button>
+      </div>
+      <div id="notice" class="hide"></div>
+    </div>
+
+    <!-- Presenter panel (hidden in presentation mode) -->
+    <aside class="ops panel">
+      <div class="counters">
+        <div><b id="cPool">0</b><span data-i18n="ops.eligible">eligible</span><small data-i18n="ops.eligibleSub">this round</small></div>
+        <div><b id="cWin">0</b><span data-i18n="ops.winners">winners</span></div>
+        <div><b id="cAbs">0</b><span data-i18n="ops.absences">absences</span><small id="cAbsP"></small></div>
+      </div>
+      <div id="cExtra" class="counters-extra"></div>
+      <div class="tw-state" style="margin-bottom:.6em"><span class="dot" id="twDot"></span><span id="twText">Twitch: …</span></div>
+      <h3 data-i18n="ops.history">History</h3>
+      <ul id="history"></ul>
+      <div class="ops-btns">
+        <button class="btn small warn" id="btnCancel" data-i18n="ops.cancel">Cancel draw</button>
+        <button class="btn small ghost" id="btnReset" data-i18n="ops.reset">Restart draw</button>
+      </div>
+    </aside>
+  </section>
+
+  <!-- ===== SCREEN 3: FINAL ===== -->
+  <section id="final" class="screen">
+    <h1 id="finalTitle"></h1>
+    <p class="sub" id="finalSub"></p>
+    <div class="winners" id="finalWinners"></div>
+    <button class="btn big" id="btnBack" data-i18n="final.back">Back to the admin panel</button>
+  </section>
+
+  <div id="toast" class="hide"></div>
+  <!-- Confirmation modal -->
+  <div id="modal"><div class="box parchment">
+    <p id="modalText"></p>
+    <input id="modalInput" class="hide" maxlength="200" data-i18n-attr="placeholder:modal.reasonPlaceholder" placeholder="Reason (required)" autocomplete="off">
+    <div class="row"><button class="btn" id="modalNo" data-i18n="modal.no">Cancel</button><button class="btn jade" id="modalYes" data-i18n="modal.yes">Confirm</button></div>
+  </div></div>
+</div>
+
+<script src="locales/en.js"></script>
+<script src="locales/es.js"></script>
+<script src="i18n.js"></script>
+<script src="core.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+   PERSONALIZACIÓN · TEXTOS, NOMBRES, TIEMPOS Y SONIDOS
+   ===================================================================== */
+
+// Color de brillo de cada Celestial. Los textos narrativos (título, introducción y mensaje de victoria) están en los
+// catálogos de idioma: locales/en.js y locales/es.js → story.<celestial>.*   ({name} se sustituye por el nombre del ganador).
+const STORY = [
+  { key:'niuzao', glow:'#7fa6e8' },
+  { key:'yulon',  glow:'#3fbf9a' },
+  { key:'chiji',  glow:'#ff9a5a' },
+  { key:'xuen',   glow:'#8fdcff' }      // ronda extraordinaria de recuperación
+];
+// 0-2 = Niuzao / Yu'lon / Chi-ji (rotación circular); 3 = Xuen (solo recuperación). Los textos siguen el idioma activo.
+const celInfo = i => { const k = STORY[i].key; return { glow: STORY[i].glow,
+  get title(){ return I18n.t(`story.${k}.title`); }, get intro(){ return I18n.t(`story.${k}.intro`); }, get victory(){ return I18n.t(`story.${k}.victory`); },
+  get long(){ return I18n.t(`celestial.${k}.long`); } }; };      // .long = nombre completo («Niuzao, el Buey Negro»)
+
+// Cantidad de premios y TODOS los tiempos se configuran desde el panel «Configuración» (valores por defecto: core.js → DEFAULT_CONFIG).
+const AMBIENT_PARTICLES = 70;    // partículas mágicas de fondo
+
+// Sonidos: rellena con la ruta de un archivo (p. ej. 'sonidos/gong.mp3'). Vacío = silencio.
+const SOUNDS = { countdown:'', roll:'', reveal:'', expire:'', ambient:'' };
+
+/* =====================================================================
+   UTILIDADES
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+// ÚNICA fuente de aleatoriedad: crypto.getRandomValues (no se usa Math.random en ningún sitio).
+function rand32(){ const b = new Uint32Array(1); crypto.getRandomValues(b); return b[0]; }
+function randFloat(){ return rand32() / 4294967296; }   // solo para efectos visuales
+// Índice uniforme en [0,n) por rechazo: elimina el sesgo de módulo.
+function secureIndex(n){
+  const range = 4294967296, limit = range - (range % n);
+  let x; do { x = rand32(); } while (x >= limit);
+  return x % n;
+}
+function play(name){
+  const src = SOUNDS[name]; if (!src) return;
+  try { const a = new Audio(src); a.play().catch(()=>{}); } catch(e){}
+}
+const fmtTime = d => d.toLocaleTimeString('es-ES');
+
+/* =====================================================================
+   ILUSTRACIONES (SVG en línea). Sustituye por <img> si prefieres arte propio.
+   ===================================================================== */
+const EMBLEMS = [
+  // Imágenes en la carpeta img/. Para cambiarlas, sustituye los archivos o edita estas rutas.
+  // object-position encuadra la cara dentro del medallón circular.
+  '<img class="emb" src="img/niuzao.png" alt="Niuzao" style="object-position:50% 30%">',
+  '<img class="emb" src="img/yulon.webp" alt="Yu&#39;lon" style="object-position:30% 40%">',
+  '<img class="emb" src="img/chiji.png" alt="Chi-ji" style="object-position:50% 25%">',
+  '<img class="emb" src="img/xuen.webp" alt="Xuen" style="object-position:50% 30%">'   // ronda extraordinaria de Xuen
+];
+
+/* =====================================================================
+   ESTADO: espejo del motor del evento (core.js). La interfaz NO decide nada:
+   solo muestra el estado que recibe y envía órdenes. El plazo de confirmación es del motor.
+   ===================================================================== */
+let S = null;                 // último estado recibido
+let offset = 0;               // reloj del motor − reloj local (en la versión manual es 0)
+let prev = { status: null, candidate: null, round: -1, screen: null, xuen: false };
+let serverErr = null;         // resultado fallido al intentar iniciar ({errorKey, errorParams, errors}); se traduce al pintar
+const namesEl = $('names');
+
+/* ---- Adaptador de la versión integrada con Twitch: el estado llega del servidor por SSE y las órdenes se envían por HTTP ---- */
+const MODE = 'twitch', NAMES_ARE_TWITCH_LOGINS = true;
+async function api(name, body){
+  try {
+    const r = await fetch('/api/' + name, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body || {}) });
+    const j = await r.json(); if (!j.ok) toast(errText(j)); return j;
+  } catch(e){ toast(t('toast.noServer')); return { ok:false, errorKey:'toast.noServer' }; }
+}
+function boot(){
+  // Esta versión necesita el servidor local: no funciona abriendo el archivo con doble clic.
+  if (location.protocol === 'file:'){
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;inset:0;z-index:999;background:#0a1226;color:#f6e2a6;font:22px Georgia,serif;display:grid;place-items:center;text-align:center;padding:2em';
+    box.innerHTML = '<div><h1></h1><p></p></div>';
+    box.querySelector('h1').textContent = t('boot.needServer.title'); box.querySelector('p').textContent = t('boot.needServer.body');
+    document.body.prepend(box);
+    return;
+  }
+  const es = new EventSource('/api/events');
+  es.onmessage = e => setState(JSON.parse(e.data));
+  es.onerror = () => toast(t('toast.serverLost'));
+}
+
+
+/* ---------- i18n: todo texto visible pasa por t() ---------- */
+const t = (key, params) => I18n.t(key, params);
+// Citas con las comillas del idioma: «…» en español, “…” en inglés.
+const quoted = x => I18n.locale === 'es' ? '«' + x + '»' : '“' + x + '”';
+// Texto de un resultado fallido del motor/servidor (código + parámetros → idioma activo).
+function errText(r){
+  if (!r) return '';
+  if (r.errorKey === 'err.config_invalid' && r.errors){ const k = Object.keys(r.errors)[0]; return cfgErrText(k, r.errors[k]); }
+  if (r.errorKey) return t(r.errorKey, r.errorParams || {});
+  return r.error || t('err.generic');
+}
+function applyStatic(){
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-attr]').forEach(el => el.dataset.i18nAttr.split(';').forEach(pair => {
+    const [attr, key] = pair.split(':'); if (attr && key) el.setAttribute(attr, t(key));
+  }));
+  document.title = t('app.title');
+  document.querySelectorAll('.langsw button').forEach(b => b.classList.toggle('on', b.dataset.lang === I18n.locale));
+}
+function refreshLocale(){                                    // al cambiar de idioma se repinta todo lo ya mostrado
+  applyStatic(); buildCfgFields(); syncCfgInputs();
+  if (S){ render(); if (S.screen === 'final') renderFinal(); renderCfgIfVisible(); }
+}
+document.querySelectorAll('.langsw button').forEach(b => b.onclick = () => I18n.setLocale(b.dataset.lang, true));
+I18n.onChange(refreshLocale);
+
+function toast(msg){
+  const el = $('toast'); el.textContent = msg; el.classList.remove('hide');
+  clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.add('hide'), 6000);
+}
+function setState(next){ S = next; offset = S.serverNow - Date.now(); onState(); }
+
+function onState(){
+  const xuenNow = S.screen === 'stage' && S.xuen.active;
+  $('frame').classList.toggle('xuen', xuenNow);              // tema azul eléctrico solo durante la recuperación de Xuen
+  showScreen(S.screen);
+  namesEl.disabled = S.screen !== 'admin';
+  syncCfgFromState();
+  render();
+  if (S.screen === 'final') renderFinal();
+  if (S.status !== prev.status || S.candidate !== prev.candidate || S.round !== prev.round || S.screen !== prev.screen) transition();
+  if (xuenNow && !prev.xuen){                                // entrada de Xuen: destello y energía
+    const f = $('xuenFlash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); burst(120); play('reveal');
+  }
+  prev = { status:S.status, candidate:S.candidate, round:S.round, screen:S.screen, xuen:xuenNow };
+}
+// Efectos visuales al cambiar de fase (solo estéticos).
+function transition(){
+  const was = prev.status, rays = $('rays');
+  switch (S.status){
+    case 'intro': case 'transition': rays.classList.remove('on'); break;
+    case 'countdown': $('countNum').textContent = ''; rays.classList.remove('on'); break;
+    case 'rolling': rollNextAt = 0; rollIdx = secureIndex(Math.max(1, S.rollNames.length)); rays.classList.remove('on'); break;
+    case 'reveal':
+      if (S.candidate){ setCand(S.candidate, 'revealed'); if (was === 'rolling'){ burst(40); play('reveal'); } rays.classList.add('on'); }
+      break;
+    case 'confirming': case 'verifying': case 'paused':
+      if (S.candidate && was !== 'reveal' && was !== 'confirming' && was !== 'paused' && was !== 'verifying') setCand(S.candidate, 'revealed', false);
+      break;
+    case 'won': setCand(S.candidate, 'revealed', was !== 'won'); if (was !== 'won'){ burst(90); play('reveal'); } rays.classList.add('on'); break;
+    case 'absent': setCand(S.candidate, 'gone'); rays.classList.remove('on'); play('expire'); break;
+    case 'deserted':     // sin candidato si la ronda se declara desierta nada más empezar
+      if (S.candidate) setCand(S.candidate, 'gone'); else { $('candName').textContent = ''; }
+      rays.classList.remove('on'); play('expire'); break;
+    default: rays.classList.remove('on');
+  }
+  if (S.screen === 'final' && prev.screen !== 'final' && S.final === 'complete') burst(140);
+}
+
+/* ---------- Reloj de la interfaz: cuenta atrás, animación de selección y temporizador ---------- */
+let rollNextAt = 0, rollIdx = 0;
+function phaseRemaining(now){ const p = S.phase; return !p ? 0 : p.paused ? p.remaining : Math.max(0, p.endsAt - now); }
+function tickUI(){
+  if (!S) return;
+  const now = Date.now() + offset;
+  if (S.status === 'countdown'){
+    const n = Math.max(1, Math.ceil(phaseRemaining(now) / 1000));
+    if ($('countNum').textContent !== String(n)){ $('countNum').textContent = n; restartAnim($('countNum')); play('countdown'); }
+  }
+  if (S.status === 'rolling' && S.rollNames.length && !S.flowPaused && now >= rollNextAt){
+    const total = Math.max(1, S.phase ? S.phase.total : 1), tt = Math.min(1, 1 - phaseRemaining(now) / total);
+    setCand(S.rollNames[rollIdx++ % S.rollNames.length], 'rolling', false);
+    rollNextAt = now + 45 + 280 * tt * tt;     // cada vez más lento (solo estético: el resultado ya lo decidió el motor)
+  }
+  if (S.timer) drawTimer(now);
+}
+setInterval(tickUI, 40);
+
+function fmtRemain(ms){ const s = Math.ceil(ms/1000); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
+function drawTimer(now){
+  const tm = S.timer; if (!tm) return;
+  const rem = tm.paused ? tm.remaining : (tm.closing || S.status === 'verifying') ? 0 : tm.deadline == null ? tm.remaining : Math.max(0, tm.deadline - now);
+  const frac = Math.max(0, Math.min(1, rem / tm.total)), circ = 2*Math.PI*44, fg = $('ringFg');
+  fg.style.strokeDasharray = circ; fg.style.strokeDashoffset = circ * (1 - frac);
+  $('timeText').textContent = fmtRemain(rem);
+  $('timerBox').classList.toggle('low', tm.started && rem <= 20000);
+  $('timerNote').classList.toggle('hide', tm.started);        // durante la revelación el plazo aún no corre
+}
+function setCand(name, cls, animate = true){
+  const el = $('candName'); el.textContent = name; el.className = 'cand ' + cls;
+  const size = Math.max(3.2, Math.min(10.5, 15 - name.length*0.42));
+  el.style.fontSize = `calc(var(--u)*${size})`;
+  if (animate && (cls === 'revealed' || cls === 'gone')) restartAnim(el);
+}
+function restartAnim(el){ el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; }
+
+/* =====================================================================
+   ADMINISTRACIÓN: participantes y configuración (se valida aquí y otra vez en el motor)
+   ===================================================================== */
+const normKey = s => s.normalize('NFC').toLocaleLowerCase(I18n.locale);
+const cleanLine = s => { const x = s.replace(/\s+/g,' ').trim(); return NAMES_ARE_TWITCH_LOGINS ? x.replace(/^@/,'') : x; };
+const LOGIN_RE = /^[A-Za-z0-9_]{1,25}$/;
+
+function analyze(){
+  const lines = namesEl.value.split(/\r?\n/), valid = [], seen = new Map(), bad = []; let empty = 0;
+  lines.forEach((raw, i) => {
+    const name = cleanLine(raw);
+    if (!name){ empty++; return; }
+    if (NAMES_ARE_TWITCH_LOGINS && !LOGIN_RE.test(name)){ bad.push({name, line:i+1}); return; }
+    const key = normKey(name);
+    if (!seen.has(key)) seen.set(key, {name, lines:[i+1], count:0});
+    const e = seen.get(key); e.count++; if (e.lines[e.lines.length-1] !== i+1) e.lines.push(i+1);
+    valid.push({name, key});
+  });
+  return {valid, bad, dups:[...seen.values()].filter(e => e.count > 1), empty};
+}
+
+/* ----- panel de configuración ----- */
+const CFG_MAIN = ['prizes','confirmSec','countdownSec','rollSec','revealSec','winnerSec','absentSec','transitionSec','introSec'];
+const CFG_ADV  = ['lateSec','graceSec'];
+let cfgDraft = { ...Core.DEFAULT_CONFIG }, cfgDirty = false, cfgCheck = { ok:true, config:{...Core.DEFAULT_CONFIG}, errors:{} };
+const cfgLabel = k => t('cfg.label.' + k);
+// Mensaje corto de un error de campo y mensaje completo (con la etiqueta de la opción).
+const cfgErrShort = e => t('cfg.err.' + e.code, e);
+const cfgErrText = (k, e) => cfgLabel(k) + ': ' + cfgErrShort(e);
+// El texto de ayuda puede tener una variante para la versión manual (clave con sufijo _manual).
+const cfgHelp = k => t(MODE === 'manual' && I18n.has('cfg.help.' + k + '_manual') ? 'cfg.help.' + k + '_manual' : 'cfg.help.' + k);
+function buildCfgFields(){
+  const mk = k => {
+    const [lo, hi] = Core.LIMITS[k], unit = k === 'prizes' ? '' : ' s';
+    const tip = cfgHelp(k).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    return `<label class="cfg-row"><span>${cfgLabel(k)} <small>(${lo}–${hi}${unit})</small> <i class="help" tabindex="0" role="note" data-tip="${tip}">?</i></span>` +
+      `<input type="number" inputmode="numeric" step="1" min="${lo}" max="${hi}" data-k="${k}" id="cfg_${k}"><em data-e="${k}"></em></label>`;
+  };
+  $('cfgMain').innerHTML = CFG_MAIN.map(mk).join(''); $('cfgAdv').innerHTML = CFG_ADV.map(mk).join('');
+  document.querySelectorAll('#paneC input[data-k]').forEach(inp => inp.addEventListener('input', () => {
+    cfgDraft[inp.dataset.k] = inp.value; cfgDirty = true; $('cfgMsg').textContent = ''; renderCfg(); renderAdmin();
+  }));
+}
+function syncCfgInputs(){ for (const k of [...CFG_MAIN, ...CFG_ADV]) { const i = $('cfg_' + k); if (i && document.activeElement !== i) i.value = cfgDraft[k]; } }
+function syncCfgFromState(){                                 // el estado guardado manda mientras no haya cambios sin guardar
+  if (S.screen !== 'admin') { cfgDirty = false; return; }
+  if (!cfgDirty){ cfgDraft = { ...S.config }; syncCfgInputs(); }
+}
+function renderCfg(){
+  const count = analyze().valid.length;
+  cfgCheck = Core.validateConfig(cfgDraft, count > 0 ? count : undefined);   // sin lista aún no se compara con los participantes
+  for (const k of [...CFG_MAIN, ...CFG_ADV]){
+    const e = document.querySelector(`#paneC em[data-e="${k}"]`), i = $('cfg_' + k);
+    if (e) e.textContent = cfgCheck.errors[k] ? cfgErrShort(cfgCheck.errors[k]) : '';
+    if (i) i.classList.toggle('bad', !!cfgCheck.errors[k]);
+  }
+  const n = cfgCheck.errors.prizes ? null : Number(cfgCheck.config.prizes);
+  const ul = $('cfgPreview'); ul.innerHTML = '';
+  if (n){
+    Core.preview(n).forEach(p => { const li = document.createElement('li'); li.innerHTML = '<b></b><span></span>'; li.firstChild.textContent = t('cfg.preview.prize', { n: p.prize }); li.lastChild.textContent = '— ' + celInfo(p.index).long; ul.appendChild(li); });
+    const x = document.createElement('li'); x.className = 'xrow'; x.innerHTML = '<b>Xuen</b><span></span>'; x.lastChild.textContent = t('cfg.preview.xuen'); ul.appendChild(x);
+  } else { const li = document.createElement('li'); li.textContent = t('cfg.preview.invalid'); ul.appendChild(li); }
+  $('cfgSave').disabled = !cfgCheck.ok || S.screen !== 'admin';
+  $('cfgDirty').classList.toggle('hide', !cfgDirty);
+}
+$('cfgRestore').onclick = () => { cfgDraft = { ...Core.DEFAULT_CONFIG }; cfgDirty = true; syncCfgInputs(); $('cfgMsg').textContent = t('cfg.restored'); renderCfg(); renderAdmin(); };
+$('cfgSave').onclick = async () => {
+  if (!cfgCheck.ok) return;
+  const r = await api('config', { config: cfgCheck.config });
+  if (r.ok){ cfgDirty = false; $('cfgMsg').textContent = t('cfg.saved'); } else $('cfgMsg').textContent = errText(r) || t('cfg.saveFailed');
+  renderCfg();
+};
+document.querySelectorAll('.tab').forEach(tb => tb.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === tb));
+  $('paneP').classList.toggle('hide', tb.dataset.tab !== 'people'); $('paneC').classList.toggle('hide', tb.dataset.tab !== 'config');
+  if (tb.dataset.tab === 'config') renderCfg();
+});
+
+function renderAdmin(){
+  if (!S) return;
+  const a = analyze(), tw = S.twitch, locked = S.screen !== 'admin';
+  renderCfgIfVisible();
+  const need = Math.max(1, cfgCheck.errors.prizes ? 1 : Number(cfgCheck.config.prizes));
+  $('stValid').textContent = a.valid.length;
+  $('stDup').textContent = a.dups.reduce((n,d) => n + d.count - 1, 0);
+  $('stEmpty').textContent = a.empty;
+  const box = $('problems'); box.innerHTML = '';
+  const add = (txt, ok) => { const d = document.createElement('div'); d.className = 'problem' + (ok ? ' ok' : ''); d.textContent = txt; box.appendChild(d); };
+  if (serverErr) add(errText(serverErr));
+  a.bad.forEach(b => add(t('admin.problems.badLogin', { line: b.line, name: b.name })));
+  a.dups.forEach(d => add(t('admin.problems.dup', { name: d.name, count: d.count, lines: d.lines.join(', ') })));
+  if (a.valid.length < need) add(t('admin.problems.need', { need, have: a.valid.length }));
+  if (!cfgCheck.ok) add(t('admin.problems.cfgErrors'));
+  if (NAMES_ARE_TWITCH_LOGINS && tw && tw.status !== 'connected') add(t('admin.problems.connect'));
+  if (!a.bad.length && !a.dups.length && a.valid.length >= need && cfgCheck.ok && (!NAMES_ARE_TWITCH_LOGINS || (tw && tw.status === 'connected')))
+    add(t('admin.problems.ok', { count: a.valid.length, prizes: cfgCheck.config.prizes }) + (NAMES_ARE_TWITCH_LOGINS ? ' ' + t('admin.problems.okTwitch') : ''), true);
+  const dupKeys = new Set(a.dups.map(d => normKey(d.name)));
+  const chips = $('chips'); chips.innerHTML = '';
+  a.valid.slice(0,200).forEach(v => { const c = document.createElement('span'); c.className = 'chip' + (dupKeys.has(v.key) ? ' dup' : ''); c.textContent = v.name; chips.appendChild(c); });
+  const blocked = locked || a.bad.length > 0 || a.dups.length > 0 || a.valid.length < need || !cfgCheck.ok || (NAMES_ARE_TWITCH_LOGINS && (!tw || tw.status !== 'connected'));
+  $('btnStart').disabled = blocked; $('btnStart2').disabled = blocked;
+}
+function renderCfgIfVisible(){ if (!$('paneC').classList.contains('hide')) renderCfg(); else { const c = analyze().valid.length; cfgCheck = Core.validateConfig(cfgDraft, c > 0 ? c : undefined); } }
+namesEl.addEventListener('input', () => { serverErr = null; renderAdmin(); });
+$('btnClean').onclick = () => { namesEl.value = namesEl.value.split(/\r?\n/).map(cleanLine).filter(Boolean).join('\n'); renderAdmin(); };
+$('btnDedupe').onclick = () => {
+  const seen = new Set(), out = [];
+  namesEl.value.split(/\r?\n/).map(cleanLine).filter(Boolean).forEach(n => { const k = normKey(n); if (!seen.has(k)){ seen.add(k); out.push(n); } });
+  namesEl.value = out.join('\n'); renderAdmin();
+};
+async function startEvent(){
+  const a = analyze(); serverErr = null;
+  cfgCheck = Core.validateConfig(cfgDraft, a.valid.length);
+  if (a.bad.length || a.dups.length || !cfgCheck.ok || a.valid.length < cfgCheck.config.prizes) { renderAdmin(); return; }
+  if (!await ask(t('modal.start', { count: a.valid.length, prizes: cfgCheck.config.prizes }))) return;
+  $('btnStart').disabled = $('btnStart2').disabled = true;
+  const r = await api('start', { names: a.valid.map(v => v.name), config: cfgCheck.config });
+  if (!r.ok){ serverErr = r; renderAdmin(); } else cfgDirty = false;
+}
+$('btnStart').onclick = startEvent; $('btnStart2').onclick = startEvent;
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+function showScreen(id){ ['admin','stage','final'].forEach(s => $(s).classList.toggle('active', s === id)); }
+const TIMED = ['reveal','confirming','paused','verifying'];
+const VIS = {
+  idle:['idle'], intro:['idle'], transition:['trans'], countdown:['count'], rolling:['name'],
+  reveal:['name','ask','timer'], confirming:['name','ask','timer'], paused:['name','ask','timer'], verifying:['name','ask','timer'],
+  won:['name','win'], absent:['name','gone'], deserted:['name','gone']
+};
+const BTNS = {
+  idle:[], intro:['btnPause','btnSkip'], transition:['btnPause','btnSkip'], countdown:['btnPause'], rolling:['btnPause'],
+  reveal:['btnConfirm','btnPause','btnDisq'], confirming:['btnConfirm','btnPause','btnDisq'], paused:['btnConfirm','btnPause','btnDisq'],
+  verifying:['btnConfirm','btnDisq'], won:['btnPause','btnSkip'], absent:['btnPause','btnSkip'], deserted:['btnPause','btnSkip']
+};
+function renderTwitch(){
+  const tw = S.twitch, rs = tw.reason ? t('twitch.reason.' + tw.reason.code, { detail: tw.reason.detail || '' }) : '';
+  const map = {
+    connected:['on', t('twitch.status.connected', { channel: tw.channel, user: tw.user })],
+    reconnecting:['wait', t('twitch.status.reconnecting') + (rs ? ' (' + rs + ')' : '')],
+    disconnected:['err', t('twitch.status.disconnected') + (rs ? ' — ' + rs : '')]
+  };
+  const [cls, text] = !tw.configured ? ['err', t('twitch.status.missingEnv')] : map[tw.status];
+  [$('twDot'), $('twDotA')].forEach(d => d.className = 'dot ' + cls);
+  $('twText').textContent = text; $('twTextA').textContent = text;
+  $('btnTwLogin').classList.toggle('hide', tw.authenticated && tw.status !== 'disconnected');
+  $('btnTwLogin').disabled = !tw.configured;
+  $('btnTwLogout').classList.toggle('hide', !tw.authenticated);
+}
+function render(){
+  renderAdmin(); renderTwitch(); renderHistory();
+  if (S.screen !== 'stage') return;
+  const cel = S.celestial, info = celInfo(cel.index), xuen = S.xuen.active, s = S.status;
+  $('stage').dataset.status = s;
+  $('stage').dataset.flow = S.flowPaused ? 'paused' : '';
+  $('stage').style.setProperty('--stage-glow', info.glow);
+  $('stageNum').textContent = xuen ? t('story.xuen.kicker') : t('stage.prizeOf', { prize: S.prize, prizes: S.prizes });
+  $('stageName').textContent = xuen ? t('story.xuen.heading') : info.long;     // nombre completo del Celestial
+  $('introName').textContent = xuen ? info.long : '';      // en las rondas principales el nombre completo ya está en la cabecera; Xuen lo muestra aquí
+  $('stageTitle').textContent = xuen ? t('story.xuen.subtitle') : '— ' + info.title + ' —';
+  const xc = $('xuenCodes'); xc.classList.toggle('hide', !xuen);
+  if (xuen) xc.textContent = t('stage.xuenCodes', { remaining: S.xuen.remaining, total: S.xuen.total, recovered: S.xuen.recovered });
+  $('quote').textContent = quoted(info.intro);
+  $('emblemLg').innerHTML = EMBLEMS[cel.index] || '';
+  $('emblemSm').innerHTML = EMBLEMS[cel.index] || '';
+  // aviso de transición: qué viene a continuación
+  if (S.next){
+    const nx = S.next, ni = celInfo(nx.celestial.index);
+    $('emblemNext').innerHTML = EMBLEMS[nx.celestial.index] || '';
+    $('transMsg').textContent = nx.kind === 'round' ? t('stage.next.round', { prize: nx.prize, prizes: S.prizes, celestial: ni.long })
+      : nx.kind === 'xuen' ? t('stage.next.xuen', { heading: t('story.xuen.heading') }) : t('stage.next.xuenNext', { prize: nx.prize });
+    $('transSub').textContent = quoted(ni.intro);
+  }
+  const lastWin = S.winners[S.winners.length - 1], nm = { name: S.candidate || '' };
+  $('winMsg').textContent = s === 'won' && lastWin
+    ? info.victory.replace('{name}', S.candidate) + ' ' + t(xuen ? 'stage.won.xuen' : 'stage.won.main', { prize: lastWin.prize + 1 }) : '';
+  const absentMsg = t(S.outcome === 'disqualified' ? 'stage.disq' : xuen ? 'stage.absentXuen' : 'stage.absent', nm);
+  $('goneMsg').textContent = s === 'absent' ? absentMsg
+    : s === 'deserted' ? (S.candidate ? absentMsg + ' ' : '') + t(xuen ? 'stage.desertedXuen' : 'stage.deserted') : '';
+  const grace = s === 'confirming' && S.timer && S.timer.grace;
+  const vm = $('verifyMsg');
+  vm.classList.toggle('hide', !(s === 'verifying' || grace));
+  vm.textContent = t(s === 'verifying' ? 'stage.verifying' : 'stage.grace');
+  const vis = VIS[s] || [];
+  document.querySelectorAll('#stage [data-v]').forEach(el => el.classList.toggle('hide', !vis.includes(el.dataset.v)));
+  $('emblemSm').classList.toggle('hide', s === 'idle' || s === 'intro' || s === 'countdown' || s === 'transition');
+  const btns = BTNS[s] || [];
+  ['btnConfirm','btnPause','btnDisq','btnSkip'].forEach(id => $(id).classList.toggle('hide', !btns.includes(id)));
+  if (S.timer && S.timer.closing) $('btnPause').classList.add('hide');
+  if (!S.skippable) $('btnSkip').classList.add('hide');
+  $('btnPause').textContent = t(S.flowPaused ? 'stage.btn.resume' : TIMED.includes(s) ? 'stage.btn.pauseTimer' : 'stage.btn.pauseEvent');
+  const n = $('notice'); n.classList.toggle('hide', !S.notice); if (S.notice) n.textContent = t(S.notice.key, S.notice.params);
+  const c = S.counts;
+  $('cPool').textContent = c.eligible; $('cWin').textContent = `${c.winners}/${S.prizes}`;
+  $('cAbs').textContent = c.absentEvents;                       // eventos de ausencia (una persona puede sumar varios)
+  $('cAbsP').textContent = t('ops.people', { count: c.absentPeople });
+  $('cExtra').textContent = t('ops.extra', { delivered: c.prizesDelivered, recovered: c.prizesRecovered, pending: c.prizesPending, dq: c.disqualified, deserted: c.desertedRounds });
+  if (S.timer) drawTimer(Date.now() + offset);
+}
+function renderHistory(){
+  const ul = $('history'); ul.innerHTML = '';
+  [...S.history].reverse().forEach(h => {
+    const li = document.createElement('li');
+    li.className = 't-' + (['conf', 'aus', 'dq', 'des', 'sel', 'xuen'].includes(h.kind) ? h.kind : 'sys');
+    const tm = document.createElement('time'); tm.textContent = new Date(h.t).toLocaleTimeString(I18n.locale);
+    li.append(tm);
+    if (h.prize){ const tag = document.createElement('span'); tag.className = 'htag'; tag.textContent = (h.phase === 'recovery' ? 'Xuen · ' : '') + 'P' + h.prize + (h.phase === 'recovery' ? '' : ' · ' + h.celestial); li.append(tag); }
+    li.append(document.createTextNode(h.key ? t('log.' + h.key, h.params) : h.text)); ul.appendChild(li);   // se traduce al idioma activo
+  });
+}
+function renderFinal(){
+  const k = S.final, ps = S.prizeStates;
+  $('finalTitle').textContent = t(k === 'complete' ? 'final.ok' : k === 'incomplete' ? 'final.incomplete' : 'final.cancelled');
+  const open = ps.filter(p => p.state !== 'delivered' && p.state !== 'recovered').map(p => '#' + p.prize).join(', ');
+  $('finalSub').textContent = k === 'complete' ? t('final.subOk')
+    : k === 'incomplete' ? t('final.subIncomplete', { list: open })
+    : t('final.subCancelled') + (open ? ' ' + t('final.subCancelledOpen', { list: open }) : '');
+  const box = $('finalWinners'); box.innerHTML = '';
+  box.classList.toggle('dense', ps.length > 3);
+  ps.forEach(p => {
+    const info = celInfo(p.celIndex), got = !!p.winner;
+    const card = document.createElement('div'); card.className = 'wcard parchment' + (got ? '' : ' empty');
+    card.innerHTML = `<div class="emblem-sm">${EMBLEMS[p.celIndex] || ''}</div><div class="deity"></div><div class="trial"></div>` +
+      (p.via === 'xuen' ? '<div class="tag"></div>' : '') + `<div class="wname"></div>`;
+    card.querySelector('.deity').textContent = t('final.card.deity', { prize: p.prize, celestial: ps.length > 3 ? p.celestial : info.long });   // en la cuadrícula compacta, nombre corto
+    card.querySelector('.trial').textContent = t('final.card.trial', { title: info.title.toLocaleLowerCase(I18n.locale) });
+    if (p.via === 'xuen') card.querySelector('.tag').textContent = t('final.card.recovered');
+    card.querySelector('.wname').textContent = got ? p.winner : t('final.card.unassigned');
+    box.appendChild(card);
+  });
+}
+
+/* =====================================================================
+   MODAL DE CONFIRMACIÓN
+   ===================================================================== */
+let modalResolve = null, modalReason = false;
+function ask(text, reason = false){
+  return new Promise(res => {
+    if (modalResolve) modalResolve(false);
+    modalResolve = res; modalReason = reason;
+    $('modalText').textContent = text;
+    const inp = $('modalInput'); inp.value = ''; inp.style.outline = ''; inp.classList.toggle('hide', !reason);
+    $('modal').classList.add('on'); if (reason) inp.focus();
+  });
+}
+// Pide confirmación y un motivo obligatorio (mín. 3 caracteres). Devuelve el motivo, o null si se cancela.
+async function askReason(text){ return await ask(text, true) ? $('modalInput').value.trim() : null; }
+function closeModal(v){
+  if (v && modalReason && $('modalInput').value.trim().length < 3){ $('modalInput').style.outline = '2px solid var(--danger)'; $('modalInput').focus(); return; }
+  $('modal').classList.remove('on'); const r = modalResolve; modalResolve = null; if (r) r(v);
+}
+$('modalYes').onclick = () => closeModal(true);
+$('modalNo').onclick  = () => closeModal(false);
+
+/* =====================================================================
+   BOTONES Y ATAJOS (solo envían órdenes)
+   ===================================================================== */
+$('btnConfirm').onclick  = () => api('confirm');       // respaldo manual: en Twitch el chat confirma solo
+$('btnPause').onclick    = () => api('pause');
+$('btnSkip').onclick     = () => api('skip');
+// Descalificación GLOBAL: confirmación + motivo obligatorio. (La ausencia por tiempo es automática y solo afecta a la ronda actual.)
+$('btnDisq').onclick     = async () => {
+  if (!S || !S.candidate) return;
+  const reason = await askReason(t('modal.dq', { name: S.candidate }));
+  if (reason) api('disqualify', { reason });
+};
+$('btnCancel').onclick   = async () => { if (await ask(t('modal.cancel'))) api('cancel'); };
+$('btnReset').onclick    = async () => { if (await ask(t('modal.reset'))) api('reset'); };
+$('btnBack').onclick     = () => api('back');          // solo se permite al terminar el evento
+$('btnTwLogin').onclick  = () => { location.href = '/auth/login'; };
+$('btnTwLogout').onclick = async () => { if (await ask(t('modal.logout'))) fetch('/auth/logout', { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' }); };
+
+function setPres(on){ document.body.classList.toggle('pres', on); }
+$('btnPres').onclick = () => setPres(true);
+$('btnPresExit').onclick = () => setPres(false);
+// Para OBS: añade ?view=presentation a la URL de la fuente de navegador (y ?lang=es para forzar el idioma).
+if (new URLSearchParams(location.search).get('view') === 'presentation') setPres(true);
+document.addEventListener('keydown', e => {
+  if (e.target === namesEl || e.target.tagName === 'INPUT' || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'Escape') setPres(false);
+  if (e.key === 'p' || e.key === 'P') setPres(!document.body.classList.contains('pres'));
+});
+
+I18n.init();                   // idioma: ?lang= > elección guardada > inglés (nunca el del navegador)
+applyStatic(); buildCfgFields();
+/* =====================================================================
+   PARTÍCULAS MÁGICAS (solo estéticas)
+   ===================================================================== */
+const cv = $('fx'), cx = cv.getContext('2d'), frame = $('frame');
+let parts = [];
+const COLORS = ['#e3b956','#f6e2a6','#3fbf9a','#9fd8ff'];
+const XUEN_COLORS = ['#8fdcff','#ffffff','#a77bff','#5fd0ff'];     // azul eléctrico, blanco y violeta
+const pickColor = () => { const p = frame.classList.contains('xuen') ? XUEN_COLORS : COLORS; return p[secureIndex(p.length)]; };
+function fit(){ cv.width = frame.clientWidth; cv.height = frame.clientHeight; }
+window.addEventListener('resize', fit); fit();
+function spawn(x,y,vx,vy,life,size,col,glow){ parts.push({x,y,vx,vy,life,max:life,size,col,glow}); }
+function ambient(){
+  const ambientCount = parts.filter(p => !p.glow).length;
+  if (ambientCount < AMBIENT_PARTICLES && randFloat() < .3)
+    spawn(randFloat()*cv.width, cv.height+10, (randFloat()-.5)*.4, -(.3+randFloat()*.7), 500+randFloat()*400, 1+randFloat()*2.5, pickColor(), false);
+}
+function burst(n){
+  const x = cv.width/2, y = cv.height*.45;
+  for (let i = 0; i < n; i++){
+    const a = randFloat()*Math.PI*2, v = 2+randFloat()*7;
+    spawn(x, y, Math.cos(a)*v, Math.sin(a)*v - 1.5, 70+randFloat()*70, 2+randFloat()*3.5, pickColor(), true);
+  }
+}
+function loop(){
+  cx.clearRect(0,0,cv.width,cv.height); ambient();
+  parts = parts.filter(p => p.life-- > 0 && p.y > -20);
+  for (const p of parts){
+    p.x += p.vx; p.y += p.vy; if (p.glow){ p.vy += .07; p.vx *= .985; }
+    cx.globalAlpha = Math.max(0, Math.min(1, p.life/p.max*(p.glow?1.4:2)));
+    cx.fillStyle = p.col; cx.shadowColor = p.col; cx.shadowBlur = 10;
+    cx.beginPath(); cx.arc(p.x, p.y, p.size, 0, 6.283); cx.fill();
+  }
+  requestAnimationFrame(loop);
+}
+loop();
+if (SOUNDS.ambient){ try { const a = new Audio(SOUNDS.ambient); a.loop = true; document.addEventListener('click', () => a.play().catch(()=>{}), {once:true}); } catch(e){} }
+
+boot();                        // arranca el flujo de estados (según la versión)
+</script>
+</body>
+</html>

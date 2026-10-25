@@ -1,0 +1,5 @@
+# Consistent line endings across platforms (shared files must stay byte-identical between the two repositories)
+* text=auto eol=lf
+*.bat text eol=crlf
+*.png binary
+*.webp binary

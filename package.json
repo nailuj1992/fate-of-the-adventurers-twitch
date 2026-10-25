@@ -1,0 +1,8 @@
+{
+  "name": "destino-aventureros",
+  "version": "2.0.0",
+  "description": "El destino de los aventureros: sorteo con confirmación de presencia por el chat de Twitch (EventSub WebSocket)",
+  "private": true,
+  "engines": { "node": ">=22" },
+  "scripts": { "start": "node server.js", "test": "node --test" }
+}

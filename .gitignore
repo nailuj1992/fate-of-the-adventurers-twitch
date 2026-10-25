@@ -1,0 +1,16 @@
+# Secrets and local state — NEVER commit these
+.env
+.env.*
+!.env.example
+data/
+
+# Dependencies and logs
+node_modules/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.claude/
