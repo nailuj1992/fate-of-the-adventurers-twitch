@@ -33,7 +33,7 @@ function make(overrides = {}) {
   const fetchImpl = async (url, opts = {}) => {
     calls.push({ url: String(url), opts });
     const u = String(url), json = (code, body) => ({ ok: code < 300, status: code, json: async () => body });
-    if (u.endsWith('/oauth2/validate')) return json(200, { client_id: 'cid', login: 'streamer', user_id: state.userId || '100', scopes: state.scopes, expires_in: 3000 });
+    if (u.endsWith('/oauth2/validate')) return json(200, { client_id: 'cid', login: state.login || 'streamer', user_id: state.userId || '100', scopes: state.scopes, expires_in: 3000 });
     if (u.endsWith('/oauth2/token')) return json(200, { access_token: 'AT2', refresh_token: 'RT2', expires_in: 3600 });
     if (u.includes('/helix/users')) return json(200, { data: [{ id: '7', login: 'ana', display_name: 'Ana' }] });
     if (u.endsWith('/eventsub/subscriptions')) return json(state.subStatus, { message: 'x' });
@@ -164,4 +164,15 @@ test('cuenta: otra cuenta no puede iniciar sesión con un evento en marcha; sin 
   busy = false; state.userId = '200'; await login();
   assert.equal(tw.user.id, '200'); assert.deepEqual(seen, ['100', '200']);
   tw.logout(); assert.deepEqual(seen, ['100', '200', null]);
+});
+
+test('modo remoto: una cuenta que no está en la lista permitida no inicia sesión ni toca la sesión actual', async () => {
+  const { tw, state, tokenFile } = make({ allowLogin: login => login === 'streamer' });
+  const login = async () => { const u = new URL(tw.authUrl()); await tw.handleCallback({ code: 'CODE', state: u.searchParams.get('state') }); };
+  fs.unlinkSync(tokenFile);
+  state.login = 'intruso';
+  await assert.rejects(login(), /not allowed/);
+  assert.equal(tw.tokens, null); assert.ok(!fs.existsSync(tokenFile), 'no se guardan tokens de una cuenta no permitida');
+  state.login = 'streamer'; await login(); assert.equal(tw.user.login, 'streamer');
+  tw.logout();
 });

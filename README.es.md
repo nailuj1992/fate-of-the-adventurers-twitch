@@ -106,6 +106,20 @@ Cada premio tiene estado: *pendiente*, *en curso*, *adjudicado*, *en recuperaci�
 
 **OBS:** añade una *Fuente de navegador* con `http://localhost:3000/?view=presentation` (sin controles; los botones solo aparecen al pasar el ratón por la parte inferior). También puedes usar la tecla `P` en el panel normal.
 
+## Despliegue en Railway (opcional, modo remoto)
+
+Por defecto el servidor es solo local (`127.0.0.1`, sin inicio de sesión en el panel). Para ejecutarlo en un servidor público como [Railway](https://railway.com) hace falta un proceso Node de larga duración, así que no sirven los alojamientos estáticos (GitHub Pages) ni las plataformas sin servidor (Vercel).
+
+1. **Servicio**: crea un servicio de Railway desde este repositorio. `railway.json` define el comando de arranque y la comprobación `/healthz`; la plataforma aporta `PORT`.
+2. **Volumen**: añade un volumen y móntalo (p. ej. en `/data`); define `DATA_DIR=/data` para que tokens, configuración e historial sobrevivan a los redespliegues.
+3. **Variables** (Railway → Variables, nunca en el repositorio): `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, `TWITCH_CHANNEL`, `DATA_DIR` y
+   - `PUBLIC_URL`: el origen público con HTTPS, p. ej. `https://tu-app.up.railway.app` (sin ruta). Al definirla se activa el **modo remoto**.
+   - `ALLOWED_LOGINS`: logins de Twitch que pueden usar el panel, separados por comas (por defecto `TWITCH_CHANNEL`).
+4. **Consola de Twitch**: añade `PUBLIC_URL/auth/callback` a las OAuth Redirect URLs de la aplicación (debe coincidir con `TWITCH_REDIRECT_URI`, que por defecto vale eso).
+5. Abre `PUBLIC_URL` e inicia sesión con Twitch.
+
+En modo remoto: el panel, el flujo de estado y todas las órdenes exigen una sesión (cookie HttpOnly, Secure, SameSite=Lax, 12 h) que se obtiene iniciando sesión con una cuenta permitida; cualquier otra cuenta se rechaza antes de guardar nada. `Host` y `Origin` deben coincidir con `PUBLIC_URL`. El servidor no arranca sin un `PUBLIC_URL` con `https://` y una lista de cuentas permitidas. Las sesiones viven en memoria, así que tras un reinicio hay que volver a iniciar sesión (los tokens de Twitch persisten en el volumen). `/healthz` devuelve `ok` y ningún dato.
+
 ## Idiomas (i18n)
 La interfaz está disponible en **inglés (por defecto)** y **español**, con el mismo criterio que DocFlow: el inglés es el idioma por defecto **independientemente del idioma del navegador**.
 - **Selector EN | ES** en la esquina superior derecha. La elección se recuerda en el navegador (`localStorage`: `celestiales.locale`) y también se puede forzar con `?lang=es` (útil en la fuente de navegador de OBS: `http://localhost:3000/?view=presentation&lang=es`).
