@@ -5,7 +5,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const Core = require('../core');
 const { Game } = require('../game');
-const { makeClock, FakeTwitch, keys } = require('./helpers');
+const { makeClock, FakeTwitch, keys, sorted } = require('./helpers');
 
 const CFG = { ...Core.DEFAULT_CONFIG, prizes: 2 };
 const people = n => ['ana', 'bob', 'carla', 'diego', 'elena'].slice(0, n).map(k => ({ name: k[0].toUpperCase() + k.slice(1), key: k, userId: 'id_' + k }));
@@ -19,15 +19,15 @@ function make(n = 4, cfg = CFG) {
 function until(clock, cond, maxMs = 3_600_000) { for (let s = 0; !cond(); s += 100) { if (s > maxMs) throw new Error('condición no alcanzada'); clock.advance(100); } }
 const chatFrom = (e, key) => e.handleChat({ messageId: 'm' + Math.random(), chatterId: 'id_' + key, receivedAt: Date.now() });
 
-const VIEW_KEYS = ['absent', 'candidate', 'celestial', 'counts', 'deserted', 'disqualified', 'final', 'flowPaused', 'history', 'next', 'notice',
-  'outcome', 'phase', 'prize', 'prizeStates', 'prizes', 'rollNames', 'round', 'screen', 'serverNow', 'skippable', 'status', 'timer', 'winners', 'xuen'];
-const COUNTS_KEYS = ['absentEvents', 'absentPeople', 'desertedRounds', 'disqualified', 'eligible', 'prizesDelivered', 'prizesPending', 'prizesRecovered', 'winners'];
-const PHASE_KEYS = ['endsAt', 'name', 'paused', 'remaining', 'total'];
-const TIMER_KEYS = ['closing', 'deadline', 'grace', 'paused', 'remaining', 'started', 'total'];
-const PRIZE_STATE_KEYS = ['celIndex', 'celestial', 'prize', 'state', 'via', 'winner'];
-const HISTORY_KEYS = ['celestial', 'id', 'key', 'kind', 'params', 'phase', 'prize', 't', 'text'];
-const SNAPSHOT_KEYS = ['absent', 'cfg', 'cur', 'disqualified', 'deserted', 'eventId', 'final', 'history', 'ph', 'outcome', 'participants', 'prizes',
-  'replacement', 'rollNames', 'round', 'screen', 'seq', 'status', 'step', 'v', 'winners', 'xuen'].sort();
+const VIEW_KEYS = sorted(['absent', 'candidate', 'celestial', 'counts', 'deserted', 'disqualified', 'final', 'flowPaused', 'history', 'next', 'notice',
+  'outcome', 'phase', 'prize', 'prizeStates', 'prizes', 'rollNames', 'round', 'screen', 'serverNow', 'skippable', 'status', 'timer', 'winners', 'xuen']);
+const COUNTS_KEYS = sorted(['absentEvents', 'absentPeople', 'desertedRounds', 'disqualified', 'eligible', 'prizesDelivered', 'prizesPending', 'prizesRecovered', 'winners']);
+const PHASE_KEYS = sorted(['endsAt', 'name', 'paused', 'remaining', 'total']);
+const TIMER_KEYS = sorted(['closing', 'deadline', 'grace', 'paused', 'remaining', 'started', 'total']);
+const PRIZE_STATE_KEYS = sorted(['celIndex', 'celestial', 'prize', 'state', 'via', 'winner']);
+const HISTORY_KEYS = sorted(['celestial', 'id', 'key', 'kind', 'params', 'phase', 'prize', 't', 'text']);
+const SNAPSHOT_KEYS = sorted(['absent', 'cfg', 'cur', 'disqualified', 'deserted', 'eventId', 'final', 'history', 'ph', 'outcome', 'participants', 'prizes',
+  'replacement', 'rollNames', 'round', 'screen', 'seq', 'status', 'step', 'v', 'winners', 'xuen']);
 
 test('contrato view(): claves exactas en reposo y en cada estado de una ronda completa', () => {
   const idle = new Core.Engine({}).view();
@@ -73,7 +73,7 @@ test('contrato del historial: cada entrada lleva clave + parámetros + texto en 
     assert.equal(typeof h.text, 'string');
     assert.ok(['main', 'recovery'].includes(h.phase));
   }
-  assert.deepEqual([...new Set(e.history.map(h => h.kind))].sort(), ['conf', 'ronda', 'sel', 'sys']);
+  assert.deepEqual(sorted(new Set(e.history.map(h => h.kind))),['conf', 'ronda', 'sel', 'sys']);
 });
 
 test('contrato del snapshot v1: claves exactas, ida y vuelta sin pérdida y JSON puro', () => {
@@ -102,8 +102,8 @@ test('contrato de configuración: valores por defecto, límites y orden de clave
   assert.deepEqual(Object.keys(Core.DEFAULT_CONFIG), ['prizes', 'confirmSec', 'countdownSec', 'rollSec', 'revealSec', 'winnerSec', 'absentSec', 'transitionSec', 'introSec', 'lateSec', 'graceSec']);
   assert.deepEqual(Core.LIMITS, { prizes: [1, 50], confirmSec: [10, 600], countdownSec: [0, 30], rollSec: [0, 60], revealSec: [0, 30],
     winnerSec: [0, 60], absentSec: [0, 60], transitionSec: [0, 60], introSec: [0, 60], lateSec: [0, 10], graceSec: [0, 300] });
-  assert.deepEqual(Object.keys(Core).sort(), ['CELESTIALS', 'CONFIG_KEYS', 'DEFAULT_CONFIG', 'Engine', 'LIMITS', 'LIVE', 'MAX_PRIZES', 'XUEN',
-    'preview', 'roundCelestial', 'secureIndex', 'secureShuffle', 'toMs', 'validateConfig']);
+  assert.deepEqual(keys(Core), sorted(['CELESTIALS', 'CONFIG_KEYS', 'DEFAULT_CONFIG', 'Engine', 'LIMITS', 'LIVE', 'MAX_PRIZES', 'XUEN',
+    'preview', 'roundCelestial', 'secureIndex', 'secureShuffle', 'toMs', 'validateConfig']));
 });
 
 test('contrato de errores del motor: {ok:false, errorKey, errorParams, error en inglés}', () => {
@@ -118,7 +118,7 @@ test('contrato de errores del motor: {ok:false, errorKey, errorParams, error en 
 test('Game con RELOJ SIMULADO: evento completo sin esperas reales y publicState con sus claves', async () => {
   const clock = makeClock(), tw = new FakeTwitch();
   const g = new Game({ twitch: tw, config: CFG, pick: first, clock });
-  assert.deepEqual(keys(g.publicState()), [...VIEW_KEYS, 'config', 'defaults', 'limits', 'twitch'].sort());
+  assert.deepEqual(keys(g.publicState()), sorted([...VIEW_KEYS, 'config', 'defaults', 'limits', 'twitch']));
   assert.equal((await g.start(['ana', 'bob', 'carla'])).ok, true);
   for (let i = 0; g.screen !== 'final' && i < 5000; i++) {
     if (g.status === 'confirming' && g.cur && !g.cur.settled) g.handleChat({ messageId: 'm' + i, chatterId: g.cur.userId, receivedAt: clock.now() });

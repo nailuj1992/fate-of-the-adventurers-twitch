@@ -35,7 +35,8 @@ class FakeTwitch extends EventEmitter {
   }
 }
 
-/** Claves de un objeto, ordenadas: los contratos se comparan como conjuntos, no por orden de declaración. */
-const keys = o => Object.keys(o).sort();
+/** Ordena textos alfabéticamente con una comparación explícita (los contratos se comparan como conjuntos, no por orden de declaración). */
+const sorted = list => [...list].sort((a, b) => a.localeCompare(b));
+const keys = o => sorted(Object.keys(o));
 
-module.exports = { makeClock, FakeTwitch, keys };
+module.exports = { makeClock, FakeTwitch, keys, sorted };

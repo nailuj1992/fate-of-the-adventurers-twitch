@@ -13,12 +13,8 @@ const SIBLING_NAMES = ['fate-of-the-adventurers-manual', 'Idea 2 - Manual'];
 const sibling = SIBLING_NAMES.map(n => path.join(ROOT, '..', n)).find(p => fs.existsSync(p));
 const read = (...p) => fs.readFileSync(path.join(...p), 'utf8');
 
-function needSibling(t) {
-  if (sibling) return true;
-  if (process.env.REQUIRE_SIBLING === '1') assert.fail('REQUIRE_SIBLING=1 pero el repositorio manual no está junto a este');
-  t.skip('repositorio manual no encontrado junto a este');
-  return false;
-}
+const MISSING = 'repositorio manual no encontrado junto a este';
+const REQUIRED = process.env.REQUIRE_SIBLING === '1';
 
 // El bloque del adaptador va desde su marca hasta la sección de i18n; todo lo demás debe coincidir.
 function withoutAdapter(html) {
@@ -29,19 +25,19 @@ function withoutAdapter(html) {
 
 for (const f of SHARED_FILES) {
   test('archivo compartido idéntico en ambos repositorios: ' + f, t => {
-    if (!needSibling(t)) return;
+    if (!sibling) { assert.ok(!REQUIRED, MISSING); t.skip(MISSING); return; }
     assert.equal(read(sibling, f), read(ROOT, f));
   });
 }
 
 test('la interfaz es la misma en ambos repositorios salvo el bloque Adaptador', t => {
-  if (!needSibling(t)) return;
+  if (!sibling) { assert.ok(!REQUIRED, MISSING); t.skip(MISSING); return; }
   const ours = read(ROOT, 'public', 'index.html'), theirs = read(sibling, 'index.html');
   assert.equal(withoutAdapter(theirs), withoutAdapter(ours));
 });
 
 test('cada versión declara su propio modo en el bloque Adaptador', t => {
-  if (!needSibling(t)) return;
+  if (!sibling) { assert.ok(!REQUIRED, MISSING); t.skip(MISSING); return; }
   assert.match(read(ROOT, 'public', 'index.html'), /const MODE = 'twitch'/);
   assert.match(read(sibling, 'index.html'), /const MODE = 'manual'/);
 });
