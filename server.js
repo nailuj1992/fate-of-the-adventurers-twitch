@@ -43,10 +43,10 @@ setInterval(() => { for (const res of clients) res.write(': ping\n\n'); }, 15000
 const json = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(obj)); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 // Página de error del servidor (OAuth): en el idioma elegido en la interfaz (cookie celestiales_lang; por defecto inglés).
-const page = (req, res, code, titleKey, body) => {
-  const loc = I18n.fromCookie(req.headers.cookie), title = I18n.tIn(loc, titleKey);
+const page = (req, res, code, titleKey, bodyKey) => {
+  const loc = I18n.fromCookie(req.headers.cookie), title = I18n.tIn(loc, titleKey), body = bodyKey ? I18n.tIn(loc, bodyKey) : '';
   res.writeHead(code, { 'Content-Type': 'text/html; charset=utf-8' });
-  // Todo lo interpolado se escapa aquí (el texto del error puede venir de la URL de retorno de Twitch).
+  // Solo texto fijo de i18n (se escapa igualmente): el mensaje de error nunca se refleja en la página, puede venir de la URL de retorno de Twitch; va a la consola.
   res.end(`<!doctype html><html lang="${esc(loc)}"><meta charset="utf-8"><title>${esc(title)}</title><body style="font:18px Georgia;background:#0a1226;color:#f6e2a6;padding:3em"><h1>${esc(title)}</h1><p>${esc(body)}</p><p><a style="color:#3fbf9a" href="/">${esc(I18n.tIn(loc, 'srv.back'))}</a></p>`);
 };
 // Protección frente a DNS rebinding y peticiones de otros orígenes.
@@ -105,11 +105,11 @@ return http.createServer(async (req, res) => {
     // ---- OAuth ----
     if (req.method === 'GET' && p === '/auth/login') {
       try { res.writeHead(302, { Location: twitch.authUrl() }); return res.end(); }
-      catch (e) { return page(req, res, 500, 'srv.notConfigured', e.message + '. ' + I18n.tIn(I18n.fromCookie(req.headers.cookie), 'srv.checkEnv')); }
+      catch (e) { console.error('[twitch]', e.message); return page(req, res, 500, 'srv.notConfigured', 'srv.checkEnv'); }
     }
     if (req.method === 'GET' && p === '/auth/callback') {
       try { await twitch.handleCallback(Object.fromEntries(url.searchParams)); res.writeHead(302, { Location: '/' }); return res.end(); }
-      catch (e) { return page(req, res, 400, 'srv.connectFailed', e.message); }
+      catch (e) { console.error('[twitch] callback:', e.message); return page(req, res, 400, 'srv.connectFailed'); }
     }
     if (req.method === 'POST' && p === '/auth/logout') {
       if (!/^application\/json/.test(req.headers['content-type'] || '')) return json(res, 415, { ok: false, error: 'Content-Type debe ser application/json' });
