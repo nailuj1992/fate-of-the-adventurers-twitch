@@ -39,6 +39,7 @@ const UI_SCRIPTS = ['util', 'state', 'admin', 'stage', 'fx', 'main'];   // ui/<n
 const SHARED = {
   '/core.js': ['core.js', JS], '/i18n.js': ['i18n.js', JS], '/locales/en.js': ['locales/en.js', JS], '/locales/es.js': ['locales/es.js', JS],
   '/css/app.css': ['css/app.css', CSS],
+  '/adapter.js': ['public/adapter.js', JS],     // el único archivo de la interfaz que NO es idéntico al del repo manual
   ...Object.fromEntries(UI_SCRIPTS.map(n => [`/ui/${n}.js`, [`ui/${n}.js`, JS]])),
 };
 // Imágenes: solo public/img/<nombre>.(png|webp|jpg|jpeg), sin subcarpetas ni rutas relativas.

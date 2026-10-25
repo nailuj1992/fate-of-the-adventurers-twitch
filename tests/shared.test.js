@@ -17,12 +17,6 @@ const read = (...p) => fs.readFileSync(path.join(...p), 'utf8');
 const MISSING = 'repositorio manual no encontrado junto a este';
 const REQUIRED = process.env.REQUIRE_SIBLING === '1';
 
-// El bloque del adaptador (script en línea) va desde su marca hasta el cierre de su <script>; todo lo demás debe coincidir.
-function withoutAdapter(html) {
-  const a = html.indexOf('/* ---- Adaptador'), b = html.indexOf('</script>', a);
-  assert.ok(a > 0 && b > a, 'bloque Adaptador presente');
-  return html.slice(0, a) + html.slice(b);
-}
 
 for (const f of SHARED_FILES) {
   test('archivo compartido idéntico en ambos repositorios: ' + f, t => {
@@ -31,14 +25,16 @@ for (const f of SHARED_FILES) {
   });
 }
 
-test('la interfaz es la misma en ambos repositorios salvo el bloque Adaptador', t => {
+test('la página es idéntica en ambos repositorios (la única diferencia está en adapter.js)', t => {
   if (!sibling) { assert.ok(!REQUIRED, MISSING); t.skip(MISSING); return; }
-  const ours = read(ROOT, 'public', 'index.html'), theirs = read(sibling, 'index.html');
-  assert.equal(withoutAdapter(theirs), withoutAdapter(ours));
+  assert.equal(read(sibling, 'index.html'), read(ROOT, 'public', 'index.html'));
 });
 
-test('cada versión declara su propio modo en el bloque Adaptador', t => {
+test('cada versión tiene su propio adapter.js y declara su nombre y capacidades', t => {
   if (!sibling) { assert.ok(!REQUIRED, MISSING); t.skip(MISSING); return; }
-  assert.match(read(ROOT, 'public', 'index.html'), /const MODE = 'twitch'/);
-  assert.match(read(sibling, 'index.html'), /const MODE = 'manual'/);
+  const ours = read(ROOT, 'public', 'adapter.js'), theirs = read(sibling, 'adapter.js');
+  assert.notEqual(ours, theirs);
+  assert.match(ours, /const ADAPTER = \{ name: 'twitch', twitchNames: true, helpSuffix: '' \};/);
+  assert.match(theirs, /const ADAPTER = \{ name: 'manual', twitchNames: false, helpSuffix: '_manual' \};/);
+  for (const src of [ours, theirs]) { assert.match(src, /\bfunction boot\(\)/); assert.match(src, /\b(async )?function api\(/); }
 });

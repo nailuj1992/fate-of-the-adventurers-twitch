@@ -69,8 +69,9 @@ const keysIn = src => [...src.matchAll(KEY_LITERAL)].map(m => m[1]);
 test('todas las claves usadas por la interfaz (Twitch y manual) existen en el catálogo', () => {
   for (const file of [path.join(ROOT, 'public', 'index.html'), MANUAL]) {
     if (!fs.existsSync(file)) continue;
-    // La página son el HTML (con el adaptador en línea) y los scripts compartidos de ui/.
-    const html = fs.readFileSync(file, 'utf8') + '\n' + readDir('ui');
+    // La página son el HTML, los scripts compartidos de ui/ y el adaptador de cada versión.
+    const adapter = path.join(path.dirname(file), 'adapter.js');           // junto a su index.html
+    const html = fs.readFileSync(file, 'utf8') + '\n' + readDir('ui') + '\n' + fs.readFileSync(adapter, 'utf8');
     const used = new Set(keysIn(html));
     for (const m of html.matchAll(/data-i18n="([^"]+)"/g)) used.add(m[1]);
     for (const m of html.matchAll(/data-i18n-attr="([^"]+)"/g)) m[1].split(';').forEach(p => used.add(p.split(':')[1]));
