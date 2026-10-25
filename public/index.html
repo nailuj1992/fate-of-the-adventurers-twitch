@@ -215,31 +215,7 @@
 <script src="ui/admin.js"></script>
 <script src="ui/stage.js"></script>
 <script src="ui/fx.js"></script>
-<script>
-'use strict';
-/* ---- Adaptador de la versión integrada con Twitch: el estado llega del servidor por SSE y las órdenes se envían por HTTP ---- */
-const MODE = 'twitch', NAMES_ARE_TWITCH_LOGINS = true;
-async function api(name, body){
-  try {
-    const r = await fetch('/api/' + name, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body || {}) });
-    const j = await r.json(); if (!j.ok) toast(errText(j)); return j;
-  } catch(e){ toast(t('toast.noServer')); return { ok:false, errorKey:'toast.noServer' }; }
-}
-function boot(){
-  // Esta versión necesita el servidor local: no funciona abriendo el archivo con doble clic.
-  if (location.protocol === 'file:'){
-    const box = document.createElement('div');
-    box.style.cssText = 'position:fixed;inset:0;z-index:999;background:#0a1226;color:#f6e2a6;font:22px Georgia,serif;display:grid;place-items:center;text-align:center;padding:2em';
-    box.innerHTML = '<div><h1></h1><p></p></div>';
-    box.querySelector('h1').textContent = t('boot.needServer.title'); box.querySelector('p').textContent = t('boot.needServer.body');
-    document.body.prepend(box);
-    return;
-  }
-  const es = new EventSource('/api/events');
-  es.onmessage = e => setState(JSON.parse(e.data));
-  es.onerror = () => toast(t('toast.serverLost'));
-}
-</script>
+<script src="adapter.js"></script>
 <script src="ui/main.js"></script>
 </body>
 </html>

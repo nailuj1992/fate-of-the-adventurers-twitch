@@ -8,7 +8,7 @@
    ADMINISTRACIÓN: participantes y configuración (se valida aquí y otra vez en el motor)
    ===================================================================== */
 const normKey = s => s.normalize('NFC').toLocaleLowerCase(I18n.locale);
-const cleanLine = s => { const x = s.replace(/\s+/g,' ').trim(); return NAMES_ARE_TWITCH_LOGINS ? x.replace(/^@/,'') : x; };
+const cleanLine = s => { const x = s.replace(/\s+/g,' ').trim(); return ADAPTER.twitchNames ? x.replace(/^@/,'') : x; };
 const LOGIN_RE = /^\w{1,25}$/;                      // \w = [A-Za-z0-9_] (sin la bandera u)
 let serverErr = null;                                // resultado fallido al intentar iniciar ({errorKey, errorParams, errors}); se traduce al pintar
 
@@ -17,7 +17,7 @@ function analyze(){
   lines.forEach((raw, i) => {
     const name = cleanLine(raw);
     if (!name){ empty++; return; }
-    if (NAMES_ARE_TWITCH_LOGINS && !LOGIN_RE.test(name)){ bad.push({name, line:i+1}); return; }
+    if (ADAPTER.twitchNames && !LOGIN_RE.test(name)){ bad.push({name, line:i+1}); return; }
     const key = normKey(name);
     if (!seen.has(key)) seen.set(key, {name, lines:[i+1], count:0});
     const e = seen.get(key); e.count++; if (e.lines[e.lines.length-1] !== i+1) e.lines.push(i+1);
@@ -35,7 +35,10 @@ const cfgLabel = k => t('cfg.label.' + k);
 const cfgErrShort = e => t('cfg.err.' + e.code, e);
 const cfgErrText = (k, e) => cfgLabel(k) + ': ' + cfgErrShort(e);
 // El texto de ayuda puede tener una variante para la versión manual (clave con sufijo _manual).
-const cfgHelp = k => t(MODE === 'manual' && I18n.has('cfg.help.' + k + '_manual') ? 'cfg.help.' + k + '_manual' : 'cfg.help.' + k);
+const cfgHelp = k => {
+  const variant = 'cfg.help.' + k + ADAPTER.helpSuffix;
+  return t(ADAPTER.helpSuffix && I18n.has(variant) ? variant : 'cfg.help.' + k);
+};
 function buildCfgFields(){
   const mk = k => {
     const [lo, hi] = Core.LIMITS[k], unit = k === 'prizes' ? '' : ' s';
@@ -98,13 +101,13 @@ function renderAdmin(){
   a.dups.forEach(d => add(t('admin.problems.dup', { name: d.name, count: d.count, lines: d.lines.join(', ') })));
   if (a.valid.length < need) add(t('admin.problems.need', { need, have: a.valid.length }));
   if (!cfgCheck.ok) add(t('admin.problems.cfgErrors'));
-  if (NAMES_ARE_TWITCH_LOGINS && tw && tw.status !== 'connected') add(t('admin.problems.connect'));
-  if (!a.bad.length && !a.dups.length && a.valid.length >= need && cfgCheck.ok && (!NAMES_ARE_TWITCH_LOGINS || tw?.status === 'connected'))
-    add(t('admin.problems.ok', { count: a.valid.length, prizes: cfgCheck.config.prizes }) + (NAMES_ARE_TWITCH_LOGINS ? ' ' + t('admin.problems.okTwitch') : ''), true);
+  if (ADAPTER.twitchNames && tw && tw.status !== 'connected') add(t('admin.problems.connect'));
+  if (!a.bad.length && !a.dups.length && a.valid.length >= need && cfgCheck.ok && (!ADAPTER.twitchNames || tw?.status === 'connected'))
+    add(t('admin.problems.ok', { count: a.valid.length, prizes: cfgCheck.config.prizes }) + (ADAPTER.twitchNames ? ' ' + t('admin.problems.okTwitch') : ''), true);
   const dupKeys = new Set(a.dups.map(d => normKey(d.name)));
   const chips = $('chips'); chips.innerHTML = '';
   a.valid.slice(0,200).forEach(v => { const c = document.createElement('span'); c.className = 'chip' + (dupKeys.has(v.key) ? ' dup' : ''); c.textContent = v.name; chips.appendChild(c); });
-  const blocked = locked || a.bad.length > 0 || a.dups.length > 0 || a.valid.length < need || !cfgCheck.ok || (NAMES_ARE_TWITCH_LOGINS && tw?.status !== 'connected');
+  const blocked = locked || a.bad.length > 0 || a.dups.length > 0 || a.valid.length < need || !cfgCheck.ok || (ADAPTER.twitchNames && tw?.status !== 'connected');
   $('btnStart').disabled = blocked; $('btnStart2').disabled = blocked;
 }
 function renderCfgIfVisible(){ if (!$('paneC').classList.contains('hide')) renderCfg(); else { const c = analyze().valid.length; cfgCheck = Core.validateConfig(cfgDraft, c > 0 ? c : undefined); } }

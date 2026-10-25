@@ -165,6 +165,9 @@ test('estáticos: solo la lista cerrada de módulos compartidos e imágenes; nad
       const r = await call(`/ui/${n}.js`);
       assert.equal(r.status, 200, n); assert.match(r.headers['content-type'], /^application\/javascript/);
     }
+    const ad = await call('/adapter.js');
+    assert.equal(ad.status, 200); assert.match(ad.headers['content-type'], /^application\/javascript/); assert.match(ad.body, /const ADAPTER = \{ name: 'twitch'/);
+    assert.match(home.body, /<script src="adapter\.js"><\/script>/, 'la página carga el adaptador');
     assert.equal((await call('/ui/nada.js')).status, 404); assert.equal((await call('/ui/../server.js')).status, 404);
     assert.match(home.body, /<script src="ui\/main\.js"><\/script>/, 'la página carga los scripts compartidos');
     const css = await call('/css/app.css');
