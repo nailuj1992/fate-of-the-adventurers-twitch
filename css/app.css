@@ -6,7 +6,6 @@
   --gold-soft:#f6e2a6;     /* dorado claro para textos destacados */
   --gold-dark:#8a6a24;
   --jade:#3fbf9a;          /* acento jade */
-  --jade-dark:#1d6b5a;
   --night:#0a1226;         /* azul noche */
   --navy:#13213f;          /* azul de paneles */
   --parchment:#efe0b8;     /* pergamino */
@@ -178,7 +177,7 @@ body.pres .ops,body.pres .topbar .ctl{display:none}
 #toast{position:absolute;left:50%;transform:translateX(-50%);top:4em;z-index:70;background:#7a1f18f0;border:calc(var(--u)*.14) solid #e08a7c;padding:.5em 1.2em;border-radius:.4em;font-size:calc(var(--u)*1.3);max-width:80%;text-align:center}
 .emb{display:block;width:100%;height:100%;object-fit:cover;border-radius:50%;border:calc(var(--u)*.25) solid var(--gold);box-shadow:0 0 0 calc(var(--u)*.12) var(--gold-dark),0 .3em 1em #000a}
 /* ---------- Xuen — La fuerza (ronda extraordinaria): azul eléctrico, blanco y violeta ---------- */
-.frame.xuen{--gold:#8fdcff;--gold-soft:#eaf7ff;--gold-dark:#4a63b8;--jade:#a77bff;--jade-dark:#5b3fb0;--navy:#1a1850;--night:#0d0a2e;
+.frame.xuen{--gold:#8fdcff;--gold-soft:#eaf7ff;--gold-dark:#4a63b8;--jade:#a77bff;--navy:#1a1850;--night:#0d0a2e;
   background:radial-gradient(ellipse at 50% 20%,#4a2f9a 0%,#241a66 45%,#0b0828 100%)}
 .frame.xuen .rays{background:repeating-conic-gradient(from 0deg,#8fdcff44 0 6deg,transparent 6deg 18deg)}
 .frame.xuen #stageName{font-size:calc(var(--u)*2.9)}
