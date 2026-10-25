@@ -103,7 +103,20 @@ test('contrato de configuración: valores por defecto, límites y orden de clave
   assert.deepEqual(Core.LIMITS, { prizes: [1, 50], confirmSec: [10, 600], countdownSec: [0, 30], rollSec: [0, 60], revealSec: [0, 30],
     winnerSec: [0, 60], absentSec: [0, 60], transitionSec: [0, 60], introSec: [0, 60], lateSec: [0, 10], graceSec: [0, 300] });
   assert.deepEqual(keys(Core), sorted(['CELESTIALS', 'CONFIG_KEYS', 'DEFAULT_CONFIG', 'Engine', 'LIMITS', 'LIVE', 'MAX_PRIZES', 'XUEN',
-    'err', 'LOGIN_RE', 'ok', 'preview', 'roundCelestial', 'secureIndex', 'secureShuffle', 'toMs', 'validateConfig']));
+    'err', 'LOGIN_RE', 'ok', 'preview', 'REASON', 'roundCelestial', 'secureIndex', 'secureShuffle', 'toMs', 'validateConfig']));
+});
+
+test('reglas compartidas de los datos del presentador: login de Twitch y motivo de descalificación', () => {
+  assert.deepEqual(Core.REASON, { min: 3, max: 200 });
+  for (const ok of ['a', 'Ana_9', 'x'.repeat(25)]) assert.ok(Core.LOGIN_RE.test(ok), ok);
+  for (const bad of ['', 'a b', '@ana', 'x'.repeat(26), 'ñandú', 'a-b']) assert.ok(!Core.LOGIN_RE.test(bad), bad);
+  const { e } = make();
+  assert.equal(e.disqualify('ab').errorKey, 'err.reason_required');
+  assert.equal(e.disqualify('   a   ').errorKey, 'err.reason_required', 'se cuentan los caracteres tras recortar espacios');
+  const clock = makeClock(), long = new Core.Engine({ now: clock.now, setT: clock.setT, clearT: clock.clearT, pick: first });
+  long.start(people(3), CFG); until(clock, () => long.status === 'confirming');
+  assert.equal(long.disqualify('x'.repeat(500)).ok, true);
+  assert.equal(long.disqualified[0].reason.length, 200, 'el motivo se recorta al máximo');
 });
 
 test('contrato de errores del motor: {ok:false, errorKey, errorParams, error en inglés}', () => {

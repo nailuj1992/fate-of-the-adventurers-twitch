@@ -172,9 +172,10 @@ function ask(text, reason = false){
 // Pide confirmación y un motivo obligatorio (mín. 3 caracteres). Devuelve el motivo, o null si se cancela.
 async function askReason(text){ return await ask(text, true) ? $('modalInput').value.trim() : null; }
 function closeModal(v){
-  if (v && modalReason && $('modalInput').value.trim().length < 3){ $('modalInput').style.outline = '2px solid var(--danger)'; $('modalInput').focus(); return; }
+  if (v && modalReason && $('modalInput').value.trim().length < Core.REASON.min){ $('modalInput').style.outline = '2px solid var(--danger)'; $('modalInput').focus(); return; }
   $('modal').classList.remove('on'); const r = modalResolve; modalResolve = null; if (r) r(v);
 }
+$('modalInput').maxLength = Core.REASON.max;       // mismo tope que aplica el motor al motivo
 $('modalYes').onclick = () => closeModal(true);
 $('modalNo').onclick  = () => closeModal(false);
 
