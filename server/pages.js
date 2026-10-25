@@ -32,8 +32,13 @@ function panel(res) {
   html(res, 200, fs.readFileSync(path.join(ROOT, 'public', 'index.html')), { 'Cache-Control': 'no-store' });
 }
 
-// Módulos compartidos con la página (reglas/configuración e i18n con sus catálogos). Lista cerrada: nada más se sirve desde aquí.
-const SHARED = { '/core.js': 'core.js', '/i18n.js': 'i18n.js', '/locales/en.js': 'locales/en.js', '/locales/es.js': 'locales/es.js' };
+// Archivos compartidos con la página (reglas/configuración, i18n con sus catálogos y la hoja de estilos), idénticos en el repo manual.
+// Lista cerrada: nada más se sirve desde aquí.
+const JS = 'application/javascript; charset=utf-8', CSS = 'text/css; charset=utf-8';
+const SHARED = {
+  '/core.js': ['core.js', JS], '/i18n.js': ['i18n.js', JS], '/locales/en.js': ['locales/en.js', JS], '/locales/es.js': ['locales/es.js', JS],
+  '/css/app.css': ['css/app.css', CSS],
+};
 // Imágenes: solo public/img/<nombre>.(png|webp|jpg|jpeg), sin subcarpetas ni rutas relativas.
 const IMG_RE = /^\/img\/([\w-]+\.(png|webp|jpe?g))$/i;
 const IMG_TYPES = { png: 'image/png', webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
@@ -41,8 +46,9 @@ const IMG_TYPES = { png: 'image/png', webp: 'image/webp', jpg: 'image/jpeg', jpe
 /** Sirve `p` si está en la lista cerrada de estáticos. Devuelve true si respondió. */
 function serveStatic(p, res) {
   if (SHARED[p]) {
-    res.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(fs.readFileSync(path.join(ROOT, SHARED[p])));
+    const [file, type] = SHARED[p];
+    res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' });
+    res.end(fs.readFileSync(path.join(ROOT, file)));
     return true;
   }
   const img = p.match(IMG_RE);

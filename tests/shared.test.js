@@ -8,7 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
-const SHARED_FILES = ['core.js', 'i18n.js', 'locales/en.js', 'locales/es.js'];
+const SHARED_FILES = ['core.js', 'i18n.js', 'locales/en.js', 'locales/es.js', 'css/app.css'];
 const SIBLING_NAMES = ['fate-of-the-adventurers-manual', 'Idea 2 - Manual'];
 const sibling = SIBLING_NAMES.map(n => path.join(ROOT, '..', n)).find(p => fs.existsSync(p));
 const read = (...p) => fs.readFileSync(path.join(...p), 'utf8');

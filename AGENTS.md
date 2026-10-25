@@ -39,6 +39,7 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 | `i18n.js` + `locales/en.js`, `locales/es.js` | **Shared** i18n module and catalogs (flat keys, `{params}`, plural suffixes `_one`/`_other`, `{ $t: 'key' }` fragments). |
 | `game.js` | Twitch wrapper around the engine: verifies the participant list against Twitch, resolves user IDs, persists settings and history per streamer (owner = Twitch user ID, set from the `identity` event). |
 | `tenants.js` | One tenant (Twitch connection + `Game`) per signed-in streamer, keyed by Twitch user ID; login/logout, allow-list, `MAX_STREAMERS`; `local` mode keeps a `current` tenant. |
+| `css/app.css` | **Shared** stylesheet (the whole look of the page, including the Xuen theme), served at `/css/app.css` from the closed list in `server/pages.js`. |
 | `railway.json` | Railway deploy settings (start command, `/healthz` check). |
 | `store.js` | `StreamerStore`: per-streamer data under `data/streamers/<twitch-id>/` (`config.json`, `historial.jsonl`); validates the ID (digits only); migrates legacy single-file data to the first account that signs in. |
 | `server.js` | Entry point: loads `.env`, builds the config, composes `Tenants` + the app and listens (`127.0.0.1` only in local mode). Importing it has no side effects; it re-exports `createApp` for the tests. |
@@ -76,7 +77,7 @@ Local web app to run a live, fair draw of in-game-time codes (prizes) for a Twit
 - **i18n.** Every user-facing string goes through `I18n.t(...)` (UI) or through a **key + params** (engine/server). Never hard-code UI text. **English is the default**, independent of the browser language. Every key must exist in **both** `en.js` and `es.js` with the same `{params}` (the tests enforce this and that every used key exists). Spanish text uses correct orthography (accents, `ñ`). User-entered data (names, reasons) is never translated.
 - **Engine messages are keys:** `this.log(kind, key, params)` stores `key` + `params` (+ English `text` for the history file); errors are `err('code', params)` → `errorKey: 'err.code'`. The UI translates them, so a language switch re-translates old history.
 - **Settings** live in one place: `DEFAULT_CONFIG` / `LIMITS` in `core.js`. No hard-coded durations elsewhere.
-- **Shared files** (`core.js`, `i18n.js`, `locales/*`) must stay **byte-identical** with the sibling repo. A test checks it when both repos are cloned side by side (`../fate-of-the-adventurers-manual`).
+- **Shared files** (`core.js`, `i18n.js`, `locales/*`, `css/app.css`) must stay **byte-identical** with the sibling repo. `tests/shared.test.js` checks it when both repos are cloned side by side (`../fate-of-the-adventurers-manual`); the CI `parity` job does it against the manual repo's `master`.
 - **UI parity.** `public/index.html` here and `index.html` in the manual repo are the same UI with a different adapter block (`/* ---- Adaptador … ---- */`: `MODE`, `api()`, `boot()`). There is no generator in the repo: apply any UI change to **both** files.
 - Style: 2-space indentation, `'use strict'`, match the surrounding code. `iniciar.bat` keeps CRLF line endings. Keep comments in Spanish.
 - Celestial names: **Niuzao, Yu'lon, Chi-ji (lowercase *j*, as on Wowhead), Xuen**; long names live in `celestial.*.long`.
