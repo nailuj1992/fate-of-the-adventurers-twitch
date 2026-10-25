@@ -331,6 +331,7 @@ body.pres .ops,body.pres .topbar .ctl{display:none}
         <div class="row">
           <button class="btn small" id="btnClean" data-i18n="admin.people.clean">Trim spaces and empty lines</button>
           <button class="btn small" id="btnDedupe" data-i18n="admin.people.dedupe">Remove duplicates</button>
+          <button class="btn small" id="btnShuffle" data-i18n="admin.people.shuffle" data-i18n-attr="title:admin.people.shuffleHint" title="Randomly reorders the list (the draw shuffles it again when it starts)">Shuffle names</button>
         </div>
         <div class="tw">
           <div class="tw-state"><span class="dot" id="twDotA"></span><span id="twTextA">Twitch: …</span></div>
@@ -771,6 +772,7 @@ function renderAdmin(){
 function renderCfgIfVisible(){ if (!$('paneC').classList.contains('hide')) renderCfg(); else { const c = analyze().valid.length; cfgCheck = Core.validateConfig(cfgDraft, c > 0 ? c : undefined); } }
 namesEl.addEventListener('input', () => { serverErr = null; renderAdmin(); });
 $('btnClean').onclick = () => { namesEl.value = namesEl.value.split(/\r?\n/).map(cleanLine).filter(Boolean).join('\n'); renderAdmin(); };
+$('btnShuffle').onclick = () => { namesEl.value = Core.secureShuffle(namesEl.value.split(/\r?\n/).map(cleanLine).filter(Boolean)).join('\n'); renderAdmin(); };
 $('btnDedupe').onclick = () => {
   const seen = new Set(), out = [];
   namesEl.value.split(/\r?\n/).map(cleanLine).filter(Boolean).forEach(n => { const k = normKey(n); if (!seen.has(k)){ seen.add(k); out.push(n); } });

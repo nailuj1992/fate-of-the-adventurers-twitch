@@ -55,7 +55,7 @@ After authorizing, the panel shows the connection status and the channel being r
 
 ## 4. Set up a draw (number of prizes and timings)
 
-Paste the participants (their **Twitch logins**, one per line). The panel counts valid, duplicate and empty lines, checks that there are enough for the prizes and tells you when everything is ready; at start, the server checks that every login exists on Twitch.
+Paste the participants (their **Twitch logins**, one per line). The panel counts valid, duplicate and empty lines, checks that there are enough for the prizes and tells you when everything is ready; at start, the server checks that every login exists on Twitch. The **Shuffle names** button reorders the list at random (the draw shuffles it again when it starts).
 
 ![Participants pasted and validated](docs/img/en/03-participants.webp)
 

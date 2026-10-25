@@ -24,6 +24,8 @@
         placeholder: 'Paste the names here, one per line…',
         clean: 'Trim spaces and empty lines',
         dedupe: 'Remove duplicates',
+        shuffle: 'Shuffle names',
+        shuffleHint: 'Randomly reorders the list (the draw shuffles it again when it starts)',
         twitchNote: 'The names in the list must be Twitch users.',
       },
       validation: { heading: 'Validation', valid: 'Valid', dup: 'Duplicates', empty: 'Empty' },
