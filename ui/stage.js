@@ -189,10 +189,10 @@ $('btnSkip').onclick     = () => api('skip');
 $('btnDisq').onclick     = async () => {
   if (!S?.candidate) return;
   const reason = await askReason(t('modal.dq', { name: S.candidate }));
-  if (reason) api('disqualify', { reason });
+  if (reason) await api('disqualify', { reason });
 };
-$('btnCancel').onclick   = async () => { if (await ask(t('modal.cancel'))) api('cancel'); };
-$('btnReset').onclick    = async () => { if (await ask(t('modal.reset'))) api('reset'); };
+$('btnCancel').onclick   = async () => { if (await ask(t('modal.cancel'))) await api('cancel'); };
+$('btnReset').onclick    = async () => { if (await ask(t('modal.reset'))) await api('reset'); };
 $('btnBack').onclick     = () => api('back');          // solo se permite al terminar el evento
 $('btnTwLogin').onclick  = () => { location.href = '/auth/login'; };
 $('btnTwLogout').onclick = async () => { if (await ask(t('modal.logout'))) await fetch('/auth/logout', { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' }); };

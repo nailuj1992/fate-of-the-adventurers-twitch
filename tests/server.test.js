@@ -193,6 +193,8 @@ test('órdenes: errores de la API con código HTTP y forma {ok, errorKey, errorP
     const { cookie } = await signIn('111', 'ana');
     shape(await call('/api/confirm', { method: 'POST', headers: as(cookie), body: '{}' }), 415, 'err.json_required');
     shape(await post('/api/nope', cookie, {}), 404, 'err.unknown_command');
+    for (const inherited of ['constructor', '__proto__', 'toString', 'hasOwnProperty'])    // nombres heredados de Object no son órdenes
+      shape(await post('/api/' + inherited, cookie, {}), 404, 'err.unknown_command');
     const known = await post('/api/confirm', cookie, {});
     assert.equal(known.status, 200); assert.equal(JSON.parse(known.body).errorKey, 'err.no_active_confirm');
     // D-2: un JSON inválido ya no es un 500 sino un 400 con su clave.

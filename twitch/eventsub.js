@@ -95,11 +95,11 @@ class EventSubSession extends EventEmitter {
         if (meta.subscription_type !== 'channel.chat.message') return;
         const e = msg.payload.event || {};
         this.emit('message', { messageId: e.message_id, chatterId: e.chatter_user_id, chatterLogin: e.chatter_user_login,
-          text: (e.message && e.message.text) || '', receivedAt: Date.now() });
+          text: e.message?.text || '', receivedAt: Date.now() });
         return;
       }
       case 'revocation': {
-        const st = msg.payload.subscription && msg.payload.subscription.status;
+        const st = msg.payload.subscription?.status;
         this.stop();
         this.emit('status', 'disconnected', { code: 'revoked', detail: st });
         return;
@@ -147,7 +147,7 @@ class EventSubSession extends EventEmitter {
       try { await this.ensureToken(); if (this.wanted) this.openSocket(this.url, false); }
       catch (e) { if (e.code !== 'AUTH' && this.wanted) this.scheduleRetry(); }
     }, delay);
-    if (this.retryTimer && this.retryTimer.unref) this.retryTimer.unref();
+    this.retryTimer?.unref?.();       // el reintento no debe impedir que el proceso termine
   }
 }
 

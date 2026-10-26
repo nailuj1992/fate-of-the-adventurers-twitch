@@ -17,7 +17,10 @@ function main() {
   const tc = (key, params) => I18n.tIn(cfg.consoleLocale, key, params);
 
   const problems = configProblems(cfg);
-  if (problems.length) { for (const m of problems) console.error('[config]', m); process.exit(1); }
+  if (problems.length) {
+    for (const m of problems) { console.error('[config]', m); }
+    process.exit(1);
+  }
 
   const tenants = new Tenants({
     store: new StreamerStore(path.resolve(cfg.dataDir)), local: !cfg.remote, max: cfg.maxStreamers,

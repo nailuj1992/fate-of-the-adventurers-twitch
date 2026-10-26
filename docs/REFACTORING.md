@@ -34,6 +34,12 @@ Decisions and defects handled during the architectural refactoring. Behavior cha
 - `Game` console errors use the `[game]` prefix and `forLog`.
 - READMEs: structure, test count and (manual) the list of files that must travel with `index.html` brought up to date; `docs/ARCHITECTURE.md` added.
 
+## SonarCloud findings on `master` (phase 8)
+- **Server:** `handle()` split into a GET/POST route table (same responses, checked byte for byte); `.env` parsing and `PUBLIC_URL` trimming without backtracking regular expressions; `resolveLogins` requests the Helix pages in parallel.
+- **Hardening:** command names are looked up with `Object.hasOwn`, so `/api/constructor`, `/api/__proto__`… answer `404 unknown_command` (before they reached `Object` and ended in a 500).
+- **Page:** the three unawaited commands are awaited. Stylesheet: explicit transitions (including `color`/`border-color` on buttons, because the Xuen theme fades them), `overflow-wrap: anywhere` instead of the deprecated `word-break: break-word`, merged `#admin` rule, no `!important` on `.manual .tw`, a background colour under the Xuen tag gradient, and a `prefers-reduced-motion` block that turns the decorative animations off for users who ask the system for less motion.
+- **Left as it is on purpose:** `.hide{display:none!important}`. Some stage blocks carry an inline `display:flex`, which only `!important` can override. Suggested SonarCloud resolution: *Won't fix*.
+
 ## Notes
 - `server.js` no longer reads `.env` when imported; only the entry point does.
 - `twitch.js` lost `handleCallback`, `BusyError` and `canChangeAccount` (unused: sign-in goes through `Tenants.login`).

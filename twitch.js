@@ -78,7 +78,7 @@ class Twitch extends EventEmitter {
   /** Valida el token, comprueba el scope y resuelve usuario y canal. */
   async setup() {
     const v = await this.auth.validate();
-    if (!v.scopes || !v.scopes.includes(SCOPES[0])) {
+    if (!v.scopes?.includes(SCOPES[0])) {
       this.invalidateTokens('auth_scope');
       throw new AuthError('Missing the user:read:chat scope');
     }
@@ -92,7 +92,7 @@ class Twitch extends EventEmitter {
     }
     clearInterval(this.validateTimer);
     this.validateTimer = setInterval(() => this.auth.validate().catch(e => this.logger('validate: ' + e.message)), VALIDATE_EVERY_MS);
-    this.validateTimer.unref && this.validateTimer.unref();
+    this.validateTimer.unref?.();
   }
   async init() {
     this.auth.loadTokens();
