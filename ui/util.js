@@ -53,9 +53,9 @@ const forceReflow = el => el.getBoundingClientRect();
 const EMBLEMS = [
   // Imágenes en la carpeta img/. Para cambiarlas, sustituye los archivos o edita estas rutas.
   // object-position encuadra la cara dentro del medallón circular.
-  '<img class="emb" src="img/niuzao.png" alt="Niuzao" style="object-position:50% 30%">',
+  '<img class="emb" src="img/niuzao.webp" alt="Niuzao" style="object-position:50% 30%">',
   '<img class="emb" src="img/yulon.webp" alt="Yu&#39;lon" style="object-position:30% 40%">',
-  '<img class="emb" src="img/chiji.png" alt="Chi-ji" style="object-position:50% 25%">',
+  '<img class="emb" src="img/chiji.webp" alt="Chi-ji" style="object-position:50% 25%">',
   '<img class="emb" src="img/xuen.webp" alt="Xuen" style="object-position:50% 30%">'   // ronda extraordinaria de Xuen
 ];
 
