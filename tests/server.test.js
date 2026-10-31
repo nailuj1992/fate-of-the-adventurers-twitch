@@ -173,7 +173,7 @@ test('estáticos: solo la lista cerrada de módulos compartidos e imágenes; nad
     const css = await call('/css/app.css');
     assert.equal(css.status, 200); assert.match(css.headers['content-type'], /^text\/css/); assert.match(css.body, /--gold:#e3b956/);
     assert.match(home.body, /<link rel="stylesheet" href="css\/app\.css">/, 'la página enlaza la hoja de estilos compartida');
-    for (const [name, type] of [['niuzao.png', 'image/png'], ['yulon.webp', 'image/webp'], ['chiji.png', 'image/png'], ['xuen.webp', 'image/webp']]) {
+    for (const [name, type] of [['niuzao.webp', 'image/webp'], ['yulon.webp', 'image/webp'], ['chiji.webp', 'image/webp'], ['xuen.webp', 'image/webp']]) {
       const r = await call('/img/' + name); assert.equal(r.status, 200, name); assert.equal(r.headers['content-type'], type);
     }
     for (const p of ['/server.js', '/.env', '/data/tokens.json', '/locales/fr.js', '/img/nope.png', '/img/../server.js', '/nada', '/public/index.html'])
